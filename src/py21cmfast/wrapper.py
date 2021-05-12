@@ -2651,10 +2651,10 @@ def run_lightcone(
 
         global_q = {quantity: np.zeros(len(scrollz)) for quantity in global_quantities}
         pf = perturb
-        if rotation_cubes:
-            random_axis=np.random.randint(0,3)   #interpolate this part of the lightcone for this axis
-        else:
-            random_axis=2
+        #if rotation_cubes:
+         #   random_axis=np.random.randint(0,3)   #interpolate this part of the lightcone for this axis
+        #else:
+        random_axis=2
         for iz, z in enumerate(scrollz):
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb_field(
@@ -2780,7 +2780,7 @@ def run_lightcone(
                             quantity_td='velocity_z'
                     data1, data2 = outs[_fld_names[quantity]]
                     fnc = interp_functions.get(quantity, "mean")
-
+                    print(random_axis, quantity_td, quantity, rotation_cubes)
                     n = _interpolate_in_redshift(
                         random_axis,
                         iz,
@@ -2862,8 +2862,10 @@ def _interpolate_in_redshift(
     lc,
     kind="mean",
 ):
-    if quantity_td!=quantity:
-        random_axis=2
+#    if quantity_td!=quantity:
+#        random_axis=2
+    if quantity=='velocity_z' and random_axis==0:
+        quantity_td='velocity_x'
     try:
         array = getattr(output_obj, quantity_td)
         array2 = getattr(output_obj2, quantity_td)
@@ -2891,12 +2893,15 @@ def _interpolate_in_redshift(
     sub_array = array.take(ind + n_lightcone, axis=random_axis, mode="wrap")
     sub_array2 = array2.take(ind + n_lightcone, axis=random_axis, mode="wrap")
     if random_axis==0:
-        sub_array=np.moveaxis(sub_array, 0, -1)
-        sub_array2=np.moveaxis(sub_array2, 0, -1)
-        
+        sub_array=np.transpose(np.moveaxis(sub_array, 0, -1), (0,1,2))
+        sub_array2=np.transpose(np.moveaxis(sub_array2, 0, -1),(0,1,2))
+        print(random_axis, quantity_td)
     if random_axis==1:
         sub_array=np.moveaxis(sub_array, -1, 0)
+        sub_array=np.transpose(sub_array, (0,1,2))
         sub_array2=np.moveaxis(sub_array2, -1, 0)
+        sub_array2=np.transpose(sub_array2, (0,1,2))
+        print(random_axis, quantity_td)
 
     out = (
         np.abs(this_d - these_distances) * sub_array
