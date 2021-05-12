@@ -2780,7 +2780,6 @@ def run_lightcone(
                             quantity_td='velocity_z'
                     data1, data2 = outs[_fld_names[quantity]]
                     fnc = interp_functions.get(quantity, "mean")
-                    print(random_axis, quantity_td, quantity, rotation_cubes)
                     n = _interpolate_in_redshift(
                         random_axis,
                         iz,
@@ -2895,13 +2894,11 @@ def _interpolate_in_redshift(
     if random_axis==0:
         sub_array=np.transpose(np.moveaxis(sub_array, 0, -1), (0,1,2))
         sub_array2=np.transpose(np.moveaxis(sub_array2, 0, -1),(0,1,2))
-        print(random_axis, quantity_td)
     if random_axis==1:
         sub_array=np.moveaxis(sub_array, -1, 0)
         sub_array=np.transpose(sub_array, (0,1,2))
         sub_array2=np.moveaxis(sub_array2, -1, 0)
         sub_array2=np.transpose(sub_array2, (0,1,2))
-        print(random_axis, quantity_td)
 
     out = (
         np.abs(this_d - these_distances) * sub_array
