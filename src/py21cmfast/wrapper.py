@@ -2845,11 +2845,9 @@ def _interpolate_in_redshift(
     lc,
     kind="mean",
 ):
-#    if quantity_td!=quantity:
-#        random_axis=2
     quantity_td=quantity
-    if quantity=='velocity_z' and los_axis==0:
-        quantity_td='velocity_x'
+    if quantity=='velocity_z' and los_axis==0: #using different velocity component
+        quantity_td='velocity_x'               #if the los is different
     if quantity=='velocity_z' and los_axis==1:
         quantity_td='velocity_y'
     try:
