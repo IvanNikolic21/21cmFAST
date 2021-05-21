@@ -2651,10 +2651,7 @@ def run_lightcone(
 
         global_q = {quantity: np.zeros(len(scrollz)) for quantity in global_quantities}
         pf = perturb
-        #if rotation_cubes:
-         #   random_axis=np.random.randint(0,3)   #interpolate this part of the lightcone for this axis
-        #else:
-        random_axis=2
+        los_axis=2
         for iz, z in enumerate(scrollz):
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb_field(
@@ -2767,21 +2764,10 @@ def run_lightcone(
             # Interpolate the lightcone
             if z < max_redshift:
                 for quantity in lightcone_quantities:
-                    quantity_td=quantity
-                    if quantity=='velocity_z' and rotation_cubes:
-                        if random_axis==0:
-                            data1,data2=outs[_fld_names['velocity_z']]
-                            quantity_td='velocity_x'
-                        if random_axis==1:
-                            data1,data2=outs[_fld_names['velocity_z']]
-                            quantity_td='velocity_y'
-                        else:
-                            data1,data2=outs[_fld_names['velocity_z']]
-                            quantity_td='velocity_z'
                     data1, data2 = outs[_fld_names[quantity]]
                     fnc = interp_functions.get(quantity, "mean")
                     n = _interpolate_in_redshift(
-                        random_axis,
+                        los_axis,
                         iz,
                         box_index,
                         lc_index,
@@ -2791,7 +2777,6 @@ def run_lightcone(
                         data1,
                         data2,
                         quantity,
-                        quantity_td,
                         lc[quantity],
                         fnc,
                     )
@@ -2799,7 +2784,7 @@ def run_lightcone(
                 box_index += n
                 rot_index+=n
                 if rotation_cubes and rot_index>=user_params.HII_DIM:
-                    random_axis=(random_axis+1)%3
+                    los_axis=(los_axis+1)%3
                     rot_index-=user_params.HII_DIM
             # Save current ones as old ones.
             if flag_options.USE_TS_FLUCT:
@@ -2847,7 +2832,7 @@ def run_lightcone(
 
 
 def _interpolate_in_redshift(
-    random_axis,
+    los_axis,
     z_index,
     box_index,
     lc_index,
@@ -2857,14 +2842,16 @@ def _interpolate_in_redshift(
     output_obj,
     output_obj2,
     quantity,
-    quantity_td,
     lc,
     kind="mean",
 ):
 #    if quantity_td!=quantity:
 #        random_axis=2
-    if quantity=='velocity_z' and random_axis==0:
+    quantity_td=quantity
+    if quantity=='velocity_z' and los_axis==0:
         quantity_td='velocity_x'
+    if quantity=='velocity_z' and los_axis==1:
+        quantity_td='velocity_y'
     try:
         array = getattr(output_obj, quantity_td)
         array2 = getattr(output_obj2, quantity_td)
@@ -2889,16 +2876,14 @@ def _interpolate_in_redshift(
     n = len(these_distances)
     ind = np.arange(-(box_index + n), -box_index)
 
-    sub_array = array.take(ind + n_lightcone, axis=random_axis, mode="wrap")
-    sub_array2 = array2.take(ind + n_lightcone, axis=random_axis, mode="wrap")
-    if random_axis==0:
-        sub_array=np.transpose(np.moveaxis(sub_array, 0, -1), (0,1,2))
-        sub_array2=np.transpose(np.moveaxis(sub_array2, 0, -1),(0,1,2))
-    if random_axis==1:
+    sub_array = array.take(ind + n_lightcone, axis=los_axis, mode="wrap")
+    sub_array2 = array2.take(ind + n_lightcone, axis=los_axis, mode="wrap")
+    if los_axis==0:
+        sub_array=np.moveaxis(sub_array, 0, -1)
+        sub_array2=np.moveaxis(sub_array2, 0, -1)
+    if los_axis==1:
         sub_array=np.moveaxis(sub_array, -1, 0)
-        sub_array=np.transpose(sub_array, (0,1,2))
         sub_array2=np.moveaxis(sub_array2, -1, 0)
-        sub_array2=np.transpose(sub_array2, (0,1,2))
 
     out = (
         np.abs(this_d - these_distances) * sub_array
