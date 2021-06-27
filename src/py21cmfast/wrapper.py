@@ -3277,57 +3277,23 @@ def run_kSZ(
             lightcone_quantities=lc_quantities,
             random_seed=random_seed,
         )
-    HII_DIM = lc.user_params.HII_DIM
-    BOX_LEN = lc.user_params.HII_DIM
-    lc_dist = lc.lightcone_distances
-    cosmo_params = lc.cosmo_params
     random.seed(random_seed)
-    red_dist = len(lc.lightcone_redshifts)  # red_dist is the amount of redshift slices
-    hlittle = (
-        cosmo_params.hlittle
-    )  # taking normalized Hubble parameter from the lightcone
 
-    OMb = cosmo_params.OMb  # taking baryion density parameter from the lightcone
-
-    CMperMPC = constants.kpc.cgs.value * 10 ** 3
-    Y_He = 0.245  # Helium fraction
-    Ho = hlittle * 3.2407e-18  # /* Hubble parameter[s^-1] at z=0 */
-    RHOcrit_cgs = (
-        3.0 * Ho * Ho / (8.0 * np.pi * constants.G.cgs.value)
-    )  # g pcm^-3 */ /* at z=0 */
-    He_No = (
-        RHOcrit_cgs * OMb * Y_He / (4.0 * constants.m_p.cgs.value)
-    )  # /*  current helium number density estimate */
-    No = (
-        RHOcrit_cgs * OMb * (1 - Y_He) / constants.m_p.cgs.value
-    )  # current hydrogen number density estimate  (#/cm^3)  ~1.92e-7*/
-    N_b0 = No + He_No  # present-day baryon num density, H + He */
-    Tcmb = np.zeros((HII_DIM, HII_DIM))
-    A = (
-        N_b0 * constants.sigma_T.cgs.value * BOX_LEN * CMperMPC / HII_DIM
-    )  # this is the factor to get the kSZ signal
-    DA_zstart = lc_dist[0]
-    dR = BOX_LEN / HII_DIM
-    Zreion_HeII = 3  # redshift of helium reionization, for tau_e calculation
     kSZ_consts = KszConstants(
-        A,
-        HII_DIM,
-        BOX_LEN,
-        red_dist,
-        N_b0,
+        lc.user_params.HII_DIM,
+        lc.user_params.BOX_LEN,
+        lc.cosmo_params.hlittle,
+        lc.cosmo_params.OMb,
+        len(lc.lightcone_redshifts),
         z_start,
-        dR,
-        He_No,
-        DA_zstart,
-        CMperMPC,
-        Zreion_HeII,
+        lc.lightcone_distances[0],
+        0.245,  # Helium fraction
+        3,  # redshift of helium reionization, for tau_e calculation
     )
 
-    mean_taue_curr_z = _tau_e(
+    kSZ_consts.mean_taue_curr_z = _tau_e(
         0, z_start, None, None, 0, cosmo_params, kSZ_consts
     )  # mean optical depth
-
-    kSZ_consts.mean_taue_curr_z = mean_taue_curr_z
 
     Tcmb, mean_taue_fin = _Proj_array(
         lc.lightcone_redshifts,
@@ -3344,21 +3310,24 @@ def run_kSZ(
         warnings.simplefilter("ignore")
         P_k, l_s, err = get_power(
             Tcmb
-            * CMperMPC
+            * KszConstants.CMperMPC
             / constants.c.cgs.value
-            * 10 ** 6
+            * 1e6
             * cosmo_params.cosmo.Tcmb0.value
             / np.sqrt(2 * np.pi),
-            BOX_LEN,
+            lc.user_params.BOX_LEN,
             bins=30,
             log_bins=True,
             get_variance=True,
         )  # in microK^2
     P_k = P_k * l_s ** 2
     err = np.sqrt(err) * l_s ** 2
-    l_s *= lc_dist[0]
+    l_s *= lc.lightcone_distances[0]
     return kSZ_output(
-        Tcmb * CMperMPC / constants.c.cgs.value * cosmo_params.cosmo.Tcmb0.value,
+        Tcmb
+        * KszConstants.CMperMPC
+        / constants.c.cgs.value
+        * cosmo_params.cosmo.Tcmb0.value,
         mean_taue_fin,
         l_s=l_s[np.logical_not(np.isnan(l_s))],
         kSZ_power=P_k[np.logical_not(np.isnan(l_s))],
@@ -3441,29 +3410,38 @@ class KszConstants:
 
     def __init__(
         self,
-        A,
         HII_DIM,
         BOX_LEN,
+        hlittle,
+        OMb,
         red_dist,
-        N_b0,
         redshift_start,
-        dR,
-        He_No,
         DA_zstart,
-        CMperMPC,
+        Y_He,
         Zreion_HeII
         #    mean_taue_curr_z
     ):
-        self.A = A
+        RHOb_cgs = (
+            3.0
+            * (hlittle * 3.2407e-18) ** 2
+            / (8.0 * np.pi * constants.G.cgs.value)
+            * OMb
+            / constants.m_p.cgs.value
+        )  # pcm^-3 at z=0
+        self.He_No = (
+            RHOb_cgs * self.Y_He / 4.0
+        )  # current helium number density estimate
+        self.N_b0 = RHOb_cgs * (
+            1 - 0.75 * self.Y_He
+        )  # present-day baryon num density, H + He
+        self.dR = BOX_LEN / HII_DIM
+        self.CMperMPC = constants.kpc.cgs.value * 1e3
+        self.A = self.N_b0 * constants.sigma_T.cgs.value * self.dR * self.CMperMPC
         self.HII_DIM = HII_DIM
         self.BOX_LEN = BOX_LEN
         self.red_dist = red_dist
-        self.N_b0 = N_b0
         self.redshift_start = redshift_start
-        self.dR = dR
-        self.He_No = He_No
         self.DA_zstart = DA_zstart
-        self.CMperMPC = CMperMPC
         self.Zreion_HeII = Zreion_HeII
 
 
