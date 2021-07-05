@@ -112,12 +112,12 @@ from .outputs import (
     HaloField,
     InitialConditions,
     IonizedBox,
+    KSZOutput,
     LightCone,
     PerturbedField,
     PerturbHaloField,
     TsBox,
     _OutputStructZ,
-    kSZ_output,
 )
 
 logger = logging.getLogger(__name__)
@@ -3260,7 +3260,7 @@ def run_kSZ(
 
     Returns
     -------
-    kSZ_output :
+    KSZOutput :
         KSZ_box: map of the kSZ effect, in Kelvins.
         taue_boxp: map of the optical depth.
     """
@@ -3323,7 +3323,7 @@ def run_kSZ(
     P_k = P_k * l_s ** 2
     err = np.sqrt(err) * l_s ** 2
     l_s *= lc.lightcone_distances[0]
-    return kSZ_output(
+    return KSZOutput(
         Tcmb
         * KszConstants.CMperMPC
         / constants.c.cgs.value
