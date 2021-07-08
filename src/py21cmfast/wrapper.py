@@ -3171,7 +3171,7 @@ def calibrate_photon_cons(
 
         while z > global_params.PhotonConsEndCalibz:
 
-            # Determine the ionisation box with recombinations, spin temperature etc.
+            # Determine the ionisation box with recombinations, spin temperature etc.
             # turned off.
             this_perturb = perturb_field(
                 redshift=z,
@@ -3231,6 +3231,8 @@ def run_kSZ(
     z_end=15,
     cosmo_params=None,
     user_params=None,
+    astro_params=None,
+    flag_options=None,
     PARALLEL_APPROX=False,
     rotation=True,
     random_seed=1,
@@ -3465,7 +3467,7 @@ class KszConstants:
         self.red_dist = red_dist
         self.redshift_start = redshift_start
         self.DA_zstart = DA_zstart
-        self.Y_He=Y_He
+        self.Y_He = Y_He
         self.Zreion_HeII = Zreion_HeII
 
 
