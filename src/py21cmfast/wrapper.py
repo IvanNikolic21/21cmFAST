@@ -3243,8 +3243,8 @@ def run_kSZ(
 
     Parameters
     ----------
-    folder: str
-        Folder name where everything is.
+    lc: :class:`~LightCone`, optional
+        lightcone object over which kSZ effect is calculated. If not provided, defalt parameters are used.
     z_start : float, optional
         Starting redshift for kSZ calculation, default is 5.
     z_end : float, optional
@@ -3263,6 +3263,9 @@ def run_kSZ(
     kSZ_output :
         KSZ_box: map of the kSZ effect, in Kelvins.
         taue_boxp: map of the optical depth.
+        l_s :  multipole moments of the power spectrum.
+        kSZ_power: Power spectrum of the kSZ effect.
+        err: Poisson error for the power spectrum.
     """
     if lc is None:
         if user_params is None:
