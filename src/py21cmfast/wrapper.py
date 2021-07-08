@@ -3304,7 +3304,7 @@ def run_kSZ(
             )
     random.seed(random_seed)
 
-    kSZ_consts = KszConstants(
+    kSZ_consts = _KszConstants(
         lc.user_params.HII_DIM,
         lc.user_params.BOX_LEN,
         lc.cosmo_params.hlittle,
@@ -3335,7 +3335,7 @@ def run_kSZ(
         warnings.simplefilter("ignore")
         P_k, l_s, err = get_power(
             Tcmb
-            * KszConstants.CMperMPC
+            * kSZ_consts.CMperMPC
             / constants.c.cgs.value
             * 1e6
             * cosmo_params.cosmo.Tcmb0.value
@@ -3350,7 +3350,7 @@ def run_kSZ(
     l_s *= lc.lightcone_distances[0]
     return KSZOutput(
         Tcmb
-        * KszConstants.CMperMPC
+        * kSZ_consts.CMperMPC
         / constants.c.cgs.value
         * cosmo_params.cosmo.Tcmb0.value,
         mean_taue_fin,
@@ -3430,7 +3430,7 @@ def _Proj_array(
     return Tcmb, mean_taue_fin
 
 
-class KszConstants:
+class _KszConstants:
     """Constants used for kSZ calculation."""
 
     def __init__(
