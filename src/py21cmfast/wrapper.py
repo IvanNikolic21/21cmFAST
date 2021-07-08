@@ -3171,7 +3171,7 @@ def calibrate_photon_cons(
 
         while z > global_params.PhotonConsEndCalibz:
 
-            # Determine the ionisation box with recombinations, spin temperature etc.
+            # Determine the ionisation box with recombinations, spin temperature etc.
             # turned off.
             this_perturb = perturb_field(
                 redshift=z,
@@ -3236,10 +3236,9 @@ def run_kSZ(
     random_seed=1,
 ):
     r"""
-    Run the kSZ module.
+    run_kSZ calculates the patchy kinetic Sunyaev-Zel'dovich signal using a 21cmFAST lighcone with density, velocity and xH_box lighcone quantities.
 
     The function takes the cosmological quantities used in the lightcone when applicable.
-
 
     Parameters
     ----------
@@ -3272,14 +3271,35 @@ def run_kSZ(
             user_params = UserParams(**UserParams._defaults_)
         if cosmo_params is None:
             cosmo_params = CosmoParams(**CosmoParams._defaults_)
-        lc_quantities = ("brightness_temp", "xH_box", "density", "velocity_z")
-        lc = run_lightcone(
-            redshift=z_start,
-            user_params=user_params,
-            cosmo_params=cosmo_params,
-            lightcone_quantities=lc_quantities,
-            random_seed=random_seed,
-        )
+        if astro_params is None:
+            astro_params = AstroParams(**AstroParams._defaults_)
+        if flag_options is None:
+            flag_options = FlagOptions(**FlagOptions._defaults_)
+        try:
+            lc_quantities = ("brightness_temp", "xH_box", "density", "velocity_z")
+            lc = run_lightcone(
+                redshift=z_start,
+                user_params=user_params,
+                cosmo_params=cosmo_params,
+                astro_params=astro_params,
+                flag_options=flag_options,
+                lightcone_quantities=lc_quantities,
+                random_seed=random_seed,
+            )
+        except ValueError:
+            lc_quantities = ("brightness_temp", "xH_box", "density", "velocity")
+            lc = run_lightcone(
+                redshift=z_start,
+                user_params=user_params,
+                cosmo_params=cosmo_params,
+                astro_params=astro_params,
+                flag_options=flag_options,
+                lightcone_quantities=lc_quantities,
+                random_seed=random_seed,
+            )
+            logger.warning(
+                "run_kSZ requires a lightcone object, which is not given. Running with default parameters."
+            )
     random.seed(random_seed)
 
     kSZ_consts = KszConstants(
@@ -3350,7 +3370,7 @@ def _Proj_array(
 ):
     """Do the actual projection."""
     dtau_3d = (
-        kSZ_consts.A * (1.0 + density) * (1.08 - xH)
+        kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4 - xH)
     )  # this is used for tau_e contribution
     if not (PARALLEL_APPROX or rotation):
         # pay attention to the z order here in cumsum
@@ -3445,6 +3465,7 @@ class KszConstants:
         self.red_dist = red_dist
         self.redshift_start = redshift_start
         self.DA_zstart = DA_zstart
+        self.Y_He=Y_He
         self.Zreion_HeII = Zreion_HeII
 
 
