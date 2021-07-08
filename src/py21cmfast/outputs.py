@@ -1264,19 +1264,15 @@ class LightCone(_HighLevelOutput):
         )
 
 
-class kSZ_output:
+class KSZOutput:
+    """Output class for kSZ effect."""
+
     def __init__(
-    self,
-    kSZ_box,
-    taue,
-    l_s=None,
-    kSZ_power=None,
-    cosmo_params=None,
-    err=None
+        self, kSZ_box, taue, l_s=None, kSZ_power=None, cosmo_params=None, err=None
     ):
-        self.kSZ_box=kSZ_box
-        self.taue=taue
-        self.l_s=l_s
-        self.kSZ_power=kSZ_power
-        self.cosmo_params=cosmo_params  
-        self.err=err
+        self.kSZ_box = kSZ_box
+        self.taue = taue
+        self.l_s = l_s
+        self.kSZ_power = kSZ_power
+        self.cosmo_params = cosmo_params
+        self.err = err
