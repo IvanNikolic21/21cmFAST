@@ -84,15 +84,14 @@ interpolated onto the lightcone cells):
 
 >>> lightcone = p21.run_lightcone(redshift=z2, max_redshift=z2, z_step_factor=1.03)
 """
+import ctypes
 import logging
 import numpy as np
 import os
 import random
 import warnings
-import ctypes
 from astropy import constants, units
-from astropy.cosmology import z_at_value
-from astropy.cosmology import Planck15
+from astropy.cosmology import Planck15, z_at_value
 from copy import deepcopy
 from powerbox import get_power
 from scipy.integrate import quad
@@ -3273,7 +3272,7 @@ def run_kSZ(
     if user_params is None:
         user_params = UserParams(**UserParams._defaults_)
     if cosmo_params is None:
-       cosmo_params = CosmoParams(**CosmoParams._defaults_)
+        cosmo_params = CosmoParams(**CosmoParams._defaults_)
     if lc is None:
         if astro_params is None:
             astro_params = AstroParams(**AstroParams._defaults_)
@@ -3317,8 +3316,13 @@ def run_kSZ(
         0.245,  # Helium fraction
         3,  # redshift of helium reionization, for tau_e calculation
     )
-    
-    kSZ_consts.mean_taue_curr_z = compute_tau(redshifts=[z_start],global_xHI= [1], user_params=user_params, cosmo_params=cosmo_params)
+
+    kSZ_consts.mean_taue_curr_z = compute_tau(
+        redshifts=[z_start],
+        global_xHI=[1],
+        user_params=user_params,
+        cosmo_params=cosmo_params,
+    )
     Tcmb, mean_taue_fin = _Proj_array(
         lc.lightcone_redshifts,
         lc.density,
@@ -3348,10 +3352,7 @@ def run_kSZ(
     err = np.sqrt(err) * l_s ** 2
     l_s *= lc.lightcone_distances[0]
     return KSZOutput(
-        Tcmb
-        * kSZ_consts.CMperMPC
-        / constants.c.cgs.value
-        * Planck15.Tcmb0.value,
+        Tcmb * kSZ_consts.CMperMPC / constants.c.cgs.value * Planck15.Tcmb0.value,
         mean_taue_fin,
         l_s=l_s[np.logical_not(np.isnan(l_s))],
         kSZ_power=P_k[np.logical_not(np.isnan(l_s))],
@@ -3452,9 +3453,7 @@ class _KszConstants:
             * OMb
             / constants.m_p.cgs.value
         )  # pcm^-3 at z=0
-        self.He_No = (
-            RHOb_cgs * Y_He / 4.0
-        )  # current helium number density estimate
+        self.He_No = RHOb_cgs * Y_He / 4.0  # current helium number density estimate
         self.N_b0 = RHOb_cgs * (
             1 - 0.75 * Y_He
         )  # present-day baryon num density, H + He
