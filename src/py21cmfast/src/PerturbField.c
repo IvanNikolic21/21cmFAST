@@ -478,7 +478,7 @@ int ComputePerturbField(
 
     for(i_direc=0;i_direc<3;i_direc++){
 
-        if(user_params->OUTPUT_ALL_VEL && (i_direc==0 || i_direc==1){continue;}
+        if(!(user_params->OUTPUT_ALL_VEL) && (i_direc==0 || i_direc==1){continue;}
 
         if(user_params->PERTURB_ON_HIGH_RES) {
             // We are going to generate the velocity field on the high-resolution perturbed density grid
