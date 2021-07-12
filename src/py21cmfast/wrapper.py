@@ -3267,11 +3267,16 @@ def run_kSZ(
         kSZ_power: Power spectrum of the kSZ effect.
         err: Poisson error for the power spectrum.
     """
-    if user_params is None:
-        user_params = UserParams(**UserParams._defaults_)
-    if cosmo_params is None:
-        cosmo_params = CosmoParams(**CosmoParams._defaults_)
-    if lc is None:
+    if lc:
+        user_params = lc.user_params
+        cosmo_params = lc.cosmo_params
+        astro_params = lc.astro_params
+        flag_options = lc.flag_options
+    else:
+        if user_params is None:
+            user_params = UserParams(**UserParams._defaults_)
+        if cosmo_params is None:
+            cosmo_params = CosmoParams(**CosmoParams._defaults_)
         if astro_params is None:
             astro_params = AstroParams(**AstroParams._defaults_)
         if flag_options is None:
@@ -3298,9 +3303,9 @@ def run_kSZ(
                 lightcone_quantities=lc_quantities,
                 random_seed=random_seed,
             )
-            logger.warning(
-                "run_kSZ requires a lightcone object, which is not given. Running with default parameters."
-            )
+        logger.warning(
+            "run_kSZ requires a lightcone object, which is not given. Running with default parameters."
+        )
     random.seed(random_seed)
 
     kSZ_consts = _KszConstants(
