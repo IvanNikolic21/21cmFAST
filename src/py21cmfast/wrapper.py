@@ -2390,6 +2390,7 @@ def run_coeval(
 def run_lightcone(
     *,
     rotation_cubes=False,
+    los_axis=2,
     redshift=None,
     max_redshift=None,
     user_params=None,
@@ -2651,7 +2652,7 @@ def run_lightcone(
 
         global_q = {quantity: np.zeros(len(scrollz)) for quantity in global_quantities}
         pf = perturb
-        los_axis=2
+        #los_axis=2
         for iz, z in enumerate(scrollz):
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb_field(
