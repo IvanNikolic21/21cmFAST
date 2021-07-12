@@ -204,6 +204,8 @@ class PerturbedField(_OutputStructZ):
     def _get_box_structures(self) -> Dict[str, Union[Dict, Tuple[int]]]:
         return {
             "density": (self.user_params.HII_DIM,) * 3,
+            "velocity_x": (self.user_params.HII_DIM,) * 3,
+            "velocity_y": (self.user_params.HII_DIM,) * 3,
             "velocity": (self.user_params.HII_DIM,) * 3,
         }
 

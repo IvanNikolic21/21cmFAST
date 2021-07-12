@@ -2646,6 +2646,7 @@ def run_lightcone(
                 hooks=hooks,
                 regenerate=regenerate,
                 direc=direc,
+                write=write,
                 random_seed=random_seed,
             )
 
@@ -2670,6 +2671,7 @@ def run_lightcone(
                 init_boxes=init_box,
                 regenerate=regenerate,
                 direc=direc,
+                write=write,
                 hooks=hooks,
             )
             if user_params.MINIMIZE_MEMORY:
@@ -2759,6 +2761,7 @@ def run_lightcone(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
+                    write=write,
                 )
                 pt_halos = perturb_halo_list(
                     redshift=z,
@@ -2769,6 +2772,7 @@ def run_lightcone(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
+                    write=write,
                 )
 
             if flag_options.USE_TS_FLUCT:
@@ -2781,6 +2785,7 @@ def run_lightcone(
                     regenerate=regenerate,
                     init_boxes=init_box,
                     hooks=hooks,
+                    write=write,
                     direc=direc,
                     cleanup=(cleanup and iz == (len(scrollz) - 1)),
                 )
@@ -2798,6 +2803,7 @@ def run_lightcone(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,
                 cleanup=(cleanup and iz == (len(scrollz) - 1)),
             )
 
@@ -2808,6 +2814,7 @@ def run_lightcone(
                 hooks=hooks,
                 direc=direc,
                 regenerate=regenerate,
+                write=write,
             )
 
             if coeval_callback is not None and compute_coeval_callback[iz]:
