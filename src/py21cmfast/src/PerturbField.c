@@ -478,7 +478,7 @@ int ComputePerturbField(
 
     for(i_direc=0;i_direc<3;i_direc++){
 
-        if(!(user_params->OUTPUT_ALL_VEL) && (i_direc==0 || i_direc==1){continue;}
+        if(!(user_params->OUTPUT_ALL_VEL) && (i_direc==0 || i_direc==1)){continue;}
 
         if(user_params->PERTURB_ON_HIGH_RES) {
             // We are going to generate the velocity field on the high-resolution perturbed density grid
@@ -525,10 +525,10 @@ int ComputePerturbField(
                         }
                         else{
                              if(user_params->PERTURB_ON_HIGH_RES) {
-                                 HIRES_density_perturb[C_INDEX(n_x,n_y,n_z)] *= dDdt_over_D*k_z*I/k_sq/(TOT_NUM_PIXELS+0.0);
+                                 HIRES_density_perturb[C_INDEX(n_x,n_y,n_z)] *= dDdt_over_D*k_direc*I/k_sq/(TOT_NUM_PIXELS+0.0);
                             }
                             else {
-                                LOWRES_density_perturb[HII_C_INDEX(n_x,n_y,n_z)] *= dDdt_over_D*k_z*I/k_sq/(HII_TOT_NUM_PIXELS+0.0);
+                                LOWRES_density_perturb[HII_C_INDEX(n_x,n_y,n_z)] *= dDdt_over_D*k_direc*I/k_sq/(HII_TOT_NUM_PIXELS+0.0);
                             }
                         }
                     }
@@ -602,8 +602,7 @@ int ComputePerturbField(
         fftwf_free(HIRES_density_perturb_saved);
     }
     fftwf_cleanup();
-
-    } // End of Try{}
+    }// End of Try{}
     Catch(status){
         return(status);
     }

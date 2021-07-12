@@ -32,6 +32,7 @@ struct UserParams{
     bool FAST_FCOLL_TABLES; //jbm:Whether to use the fast Fcoll table approximation in EPS
     bool USE_2LPT;
     bool MINIMIZE_MEMORY;
+    bool OUTPUT_ALL_VEL;
 };
 
 struct AstroParams{
