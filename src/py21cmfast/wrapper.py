@@ -84,7 +84,6 @@ interpolated onto the lightcone cells):
 
 >>> lightcone = p21.run_lightcone(redshift=z2, max_redshift=z2, z_step_factor=1.03)
 """
-import ctypes
 import logging
 import numpy as np
 import os
@@ -94,7 +93,6 @@ from astropy import constants, units
 from astropy.cosmology import Planck15, z_at_value
 from copy import deepcopy
 from powerbox import get_power
-from scipy.integrate import quad
 from scipy.interpolate import interp1d
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
@@ -3329,7 +3327,6 @@ def run_kSZ(
         lc.velocity,
         lc.xH_box,
         kSZ_consts,
-        cosmo_params,
         PARALLEL_APPROX=PARALLEL_APPROX,
         rotation=rotation,
     )
@@ -3366,7 +3363,6 @@ def _Proj_array(
     velocity,
     xH,
     kSZ_consts,
-    cosmo_params,
     PARALLEL_APPROX=False,
     rotation=False,
 ):
