@@ -2646,7 +2646,7 @@ def run_lightcone(
                 hooks=hooks,
                 regenerate=regenerate,
                 direc=direc,
-                write=write,
+                write=write,  # quick hack for running MultiNest
                 random_seed=random_seed,
             )
 
@@ -2671,7 +2671,7 @@ def run_lightcone(
                 init_boxes=init_box,
                 regenerate=regenerate,
                 direc=direc,
-                write=write,
+                write=write,  # quick hack for running MultiNest
                 hooks=hooks,
             )
             if user_params.MINIMIZE_MEMORY:
@@ -2761,7 +2761,7 @@ def run_lightcone(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
-                    write=write,
+                    write=write,  # quick hack for running MultiNest
                 )
                 pt_halos = perturb_halo_list(
                     redshift=z,
@@ -2772,7 +2772,7 @@ def run_lightcone(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
-                    write=write,
+                    write=write,  # quick hack for running MultiNest
                 )
 
             if flag_options.USE_TS_FLUCT:
@@ -2785,7 +2785,7 @@ def run_lightcone(
                     regenerate=regenerate,
                     init_boxes=init_box,
                     hooks=hooks,
-                    write=write,
+                    write=write,  # quick hack for running MultiNest
                     direc=direc,
                     cleanup=(cleanup and iz == (len(scrollz) - 1)),
                 )
@@ -2803,7 +2803,7 @@ def run_lightcone(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
-                write=write,
+                write=write,  # quick hack for running MultiNest
                 cleanup=(cleanup and iz == (len(scrollz) - 1)),
             )
 
@@ -2814,7 +2814,7 @@ def run_lightcone(
                 hooks=hooks,
                 direc=direc,
                 regenerate=regenerate,
-                write=write,
+                write=write,  # quick hack for running MultiNest
             )
 
             if coeval_callback is not None and compute_coeval_callback[iz]:
