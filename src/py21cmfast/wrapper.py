@@ -3244,7 +3244,7 @@ def run_kSZ(
     random_seed=1,
 ):
     r"""
-    run_kSZ calculates the patchy kinetic Sunyaev-Zel'dovich signal using a 21cmFAST lighcone with density, velocity and xH_box lighcone quantities.
+    run_kSZ calculates the patchy kinetic Sunyaev-Zel'dovich signal using a 21cmFAST lighcone with density, velocity, velocity_y, velocity_x and xH_box lighcone quantities.
 
     The function takes the cosmological quantities used in the lightcone when applicable.
 
@@ -3279,6 +3279,8 @@ def run_kSZ(
         cosmo_params = lc.cosmo_params
         astro_params = lc.astro_params
         flag_options = lc.flag_options
+        if lc.velocity_x is None or lc.velocity_y is None:
+            logger.error("velocity_x and velocity_y are required! rerun the lightcone with OUTPUT_ALL_VEL=True"
     else:
         if user_params is None:
             user_params = UserParams(**UserParams._defaults_)
@@ -3288,28 +3290,16 @@ def run_kSZ(
             astro_params = AstroParams(**AstroParams._defaults_)
         if flag_options is None:
             flag_options = FlagOptions(**FlagOptions._defaults_)
-        try:
-            lc_quantities = ("brightness_temp", "xH_box", "density", "velocity_z")
-            lc = run_lightcone(
-                redshift=z_start,
-                user_params=user_params,
-                cosmo_params=cosmo_params,
-                astro_params=astro_params,
-                flag_options=flag_options,
-                lightcone_quantities=lc_quantities,
-                random_seed=random_seed,
-            )
-        except ValueError:
-            lc_quantities = ("brightness_temp", "xH_box", "density", "velocity")
-            lc = run_lightcone(
-                redshift=z_start,
-                user_params=user_params,
-                cosmo_params=cosmo_params,
-                astro_params=astro_params,
-                flag_options=flag_options,
-                lightcone_quantities=lc_quantities,
-                random_seed=random_seed,
-            )
+        lc_quantities = ("brightness_temp", "xH_box", "density", "velocity", "velocity_y", "velocity_x")
+        lc = run_lightcone(
+            redshift=z_start,
+            user_params=user_params,
+            cosmo_params=cosmo_params,
+            astro_params=astro_params,
+            flag_options=flag_options,
+            lightcone_quantities=lc_quantities,
+            random_seed=random_seed,
+        )
         logger.warning(
             "run_kSZ requires a lightcone object, which is not given. Running with default parameters."
         )

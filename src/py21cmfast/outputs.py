@@ -202,12 +202,18 @@ class PerturbedField(_OutputStructZ):
     ]
 
     def _get_box_structures(self) -> Dict[str, Union[Dict, Tuple[int]]]:
-        return {
+        if self.user_params.OUTPUT_ALL_VEL:
+            return {
             "density": (self.user_params.HII_DIM,) * 3,
             "velocity_x": (self.user_params.HII_DIM,) * 3,
             "velocity_y": (self.user_params.HII_DIM,) * 3,
             "velocity": (self.user_params.HII_DIM,) * 3,
-        }
+            }
+        else:
+            return {
+            "density": (self.user_params.HII_DIM,) * 3,
+            "velocity": (self.user_params.HII_DIM,) * 3,
+            }
 
     def get_required_input_arrays(self, input_box: _BaseOutputStruct) -> List[str]:
         """Return all input arrays required to compute this object."""
