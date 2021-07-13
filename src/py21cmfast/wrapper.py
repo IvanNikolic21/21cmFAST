@@ -3280,7 +3280,9 @@ def run_kSZ(
         astro_params = lc.astro_params
         flag_options = lc.flag_options
         if lc.velocity_x is None or lc.velocity_y is None:
-            logger.error("velocity_x and velocity_y are required! rerun the lightcone with OUTPUT_ALL_VEL=True"
+            logger.error(
+                "velocity_x and velocity_y are required! rerun the lightcone with OUTPUT_ALL_VEL=True"
+            )
     else:
         if user_params is None:
             user_params = UserParams(**UserParams._defaults_)
@@ -3290,7 +3292,14 @@ def run_kSZ(
             astro_params = AstroParams(**AstroParams._defaults_)
         if flag_options is None:
             flag_options = FlagOptions(**FlagOptions._defaults_)
-        lc_quantities = ("brightness_temp", "xH_box", "density", "velocity", "velocity_y", "velocity_x")
+        lc_quantities = (
+            "brightness_temp",
+            "xH_box",
+            "density",
+            "velocity",
+            "velocity_y",
+            "velocity_x",
+        )
         lc = run_lightcone(
             redshift=z_start,
             user_params=user_params,
