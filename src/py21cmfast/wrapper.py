@@ -3280,8 +3280,8 @@ def run_kSZ(
         astro_params = lc.astro_params
         flag_options = lc.flag_options
         if lc.velocity_x is None or lc.velocity_y is None:
-            logger.error(
-                "velocity_x and velocity_y are required! rerun the lightcone with OUTPUT_ALL_VEL=True"
+            logger.warning(
+                "Using all velocity components is advised with OUTPUT_ALL_VEL=True."
             )
     else:
         if user_params is None:
