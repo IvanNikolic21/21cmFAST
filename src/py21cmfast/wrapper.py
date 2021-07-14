@@ -3279,8 +3279,8 @@ def run_kSZ(
         cosmo_params = lc.cosmo_params
         astro_params = lc.astro_params
         flag_options = lc.flag_options
-        if lc.velocity_x is None or lc.velocity_y is None:
-            logger.error(
+        if hasattr(lc, velocity_x) is False or hasattr(lc, velocity_y) is None:
+            logger.warning(
                 "velocity_x and velocity_y are required! rerun the lightcone with OUTPUT_ALL_VEL=True"
             )
     else:
