@@ -2484,6 +2484,8 @@ def run_lightcone(
     cleanup=True,
     hooks=None,
     always_purge: bool = False,
+    rotation_cubes=False,
+    los_axis=2,
     **global_kwargs,
 ):
     r"""
@@ -2724,6 +2726,7 @@ def run_lightcone(
         st, ib, bt, prev_perturb = None, None, None, None
         lc_index = 0
         box_index = 0
+        rot_index = 0
         lc = {
             quantity: np.zeros(
                 (user_params.HII_DIM, user_params.HII_DIM, n_lightcone),
@@ -2743,6 +2746,16 @@ def run_lightcone(
         spin_temp_files = []
         ionize_files = []
         brightness_files = []
+
+        if (
+            rotation_cubes
+            and user_params.OUTPUT_ALL_VEL is False
+            and ("velocity" in lightcone_quantities)
+        ):
+            logger.error(
+                "Need all velocity components to rotate the lightcone. Swith user_params.OUTPUT_ALL_VEL."
+            )
+
         for iz, z in enumerate(scrollz):
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb[iz]
@@ -2871,6 +2884,7 @@ def run_lightcone(
                     fnc = interp_functions.get(quantity, "mean")
 
                     n = _interpolate_in_redshift(
+                        los_axis,
                         iz,
                         box_index,
                         lc_index,
@@ -2885,6 +2899,10 @@ def run_lightcone(
                     )
                 lc_index += n
                 box_index += n
+                rot_index += n
+                if rotation_cubes and rot_index >= user_params.HII_DIM:
+                    los_axis = (los_axis + 1) % 3
+                    rot_index -= user_params.HII_DIM
 
             # Save current ones as old ones.
             if flag_options.USE_TS_FLUCT:
@@ -3004,6 +3022,7 @@ def _get_interpolation_outputs(
 
 
 def _interpolate_in_redshift(
+    los_axis,
     z_index,
     box_index,
     lc_index,
@@ -3016,9 +3035,16 @@ def _interpolate_in_redshift(
     lc,
     kind="mean",
 ):
+    # If rotating lighcones, change velocity_component.
+    quantity_td = quantity
+    if quantity == "velocity" and los_axis == 0:
+        quantity_td = "velocity_x"
+    if quantity == "velocity" and los_axis == 1:
+        quantity_td = "velocity_y"
+
     try:
-        array = getattr(output_obj, quantity)
-        array2 = getattr(output_obj2, quantity)
+        array = getattr(output_obj, quantity_td)
+        array2 = getattr(output_obj2, quantity_td)
     except AttributeError:
         raise AttributeError(
             f"{quantity} is not a valid field of {output_obj.__class__.__name__}"
@@ -3038,8 +3064,16 @@ def _interpolate_in_redshift(
     n = len(these_distances)
     ind = np.arange(-(box_index + n), -box_index)
 
-    sub_array = array.take(ind + n_lightcone, axis=2, mode="wrap")
-    sub_array2 = array2.take(ind + n_lightcone, axis=2, mode="wrap")
+    sub_array = array.take(ind + n_lightcone, axis=los_axis, mode="wrap")
+    sub_array2 = array2.take(ind + n_lightcone, axis=los_axis, mode="wrap")
+
+    # Adjust matrices.
+    if los_axis == 0:
+        sub_array = np.moveaxis(sub_array, 0, -1)
+        sub_array2 = np.moveaxis(sub_array2, 0, -1)
+    if los_axis == 1:
+        sub_array = np.moveaxis(sub_array, -1, 0)
+        sub_array2 = np.moveaxis(sub_array2, -1, 0)
 
     out = (
         np.abs(this_d - these_distances) * sub_array
