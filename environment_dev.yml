@@ -111,7 +111,7 @@ dependencies:
   - ca-certificates
   - libedit
   - twine
-  - h5py
+  - h5py=3.3.0
   - jupyter
   - nb_conda
   - pip:
