@@ -2558,6 +2558,13 @@ def run_lightcone(
         If switched on, the routine will do all it can to minimize peak memory usage.
         This will be at the cost of disk I/O and CPU time. Recommended to only set this
         if you are running particularly large boxes, or have low RAM.
+    rotation_cubes : bool, optional
+        Whether to rotate the lightcone during the interpolation. If True it will use a different
+        line of sight after every HII_DIM. Lightcone will have breaks, but will not have structure
+        repetition.
+    los_axis : int, optional
+        Line of sight of the lightcone interpolation. 0 is for x direction, 1 is for y direction
+        2 is for z direction. Default is 2.
     \*\*global_kwargs :
         Any attributes for :class:`~py21cmfast.inputs.GlobalParams`. This will
         *temporarily* set global attributes for the duration of the function. Note that
@@ -2746,15 +2753,6 @@ def run_lightcone(
         spin_temp_files = []
         ionize_files = []
         brightness_files = []
-
-        if (
-            rotation_cubes
-            and user_params.OUTPUT_ALL_VEL is False
-            and ("velocity" in lightcone_quantities)
-        ):
-            logger.error(
-                "Need all velocity components to rotate the lightcone. Swith user_params.OUTPUT_ALL_VEL."
-            )
 
         for iz, z in enumerate(scrollz):
             # Best to get a perturb for this redshift, to pass to brightness_temperature
