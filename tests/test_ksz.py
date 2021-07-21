@@ -10,7 +10,7 @@ def lc_ksz(perturb_field, max_redshift):
     return p21c.run_lightcone(
         perturb=perturb_field,
         max_redshift=max_redshift,
-        lightcone_quantites=(
+        lightcone_quantities=(
             "density",
             "velocity",
             "xH_box",
