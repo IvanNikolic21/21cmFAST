@@ -14,6 +14,7 @@ def lc_ksz(perturb_field, max_redshift):
             "density",
             "velocity",
             "xH_box",
+            "brightness_temp",
         ),
     )
 
