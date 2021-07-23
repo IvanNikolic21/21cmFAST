@@ -1571,6 +1571,7 @@ def ionize_box(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
+                    write=write,  # quick hack for running MultiNest
                     cleanup=False,  # We *know* we're going to need the memory again.
                 )
 
@@ -1584,6 +1585,7 @@ def ionize_box(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
             )
 
         if previous_perturbed_field is None or not previous_perturbed_field.is_computed:
@@ -1599,6 +1601,7 @@ def ionize_box(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
+                    write=write,  # quick hack for running MultiNest
                 )
 
         # Dynamically produce the halo field.
@@ -1637,6 +1640,7 @@ def ionize_box(
                 hooks=hooks,
                 regenerate=regenerate,
                 cleanup=cleanup,
+                write=write,  # quick hack for running MultiNest
             )
 
         # Run the C Code
@@ -1916,6 +1920,7 @@ def spin_temperature(
                     hooks=hooks,
                     direc=direc,
                     cleanup=False,  # we know we'll need the memory again
+                    write=write,  # quick hack for running MultiNest
                 )
 
         # Dynamically produce the perturbed field.
@@ -1926,6 +1931,7 @@ def spin_temperature(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
             )
 
         # Run the C Code
@@ -2232,6 +2238,7 @@ def run_coeval(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
+                    write=write,  # quick hack for running MultiNest
                 )
                 if z not in pz
                 else perturb[pz.index(z)]
@@ -2334,6 +2341,7 @@ def run_coeval(
                     regenerate=regenerate,
                     init_boxes=init_box,
                     hooks=hooks,
+                    write=write,  # quick hack for running MultiNest
                     direc=direc,
                     cleanup=(
                         cleanup and z == redshifts[-1]
@@ -2360,6 +2368,7 @@ def run_coeval(
                 z_heat_max=global_params.Z_HEAT_MAX,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
                 cleanup=(
                     cleanup and z == redshifts[-1]
                 ),  # cleanup if its the last time through
@@ -2385,6 +2394,7 @@ def run_coeval(
                     hooks=hooks,
                     direc=direc,
                     regenerate=regenerate,
+                    write=write,  # quick hack for running MultiNest
                 )
 
                 bt[redshift.index(z)] = _bt
@@ -2747,6 +2757,8 @@ def run_lightcone(
         }
 
         global_q = {quantity: np.zeros(len(scrollz)) for quantity in global_quantities}
+        mean_f_colls = np.zeros(len(scrollz))
+        mean_f_coll_MINIs = np.zeros(len(scrollz))
         pf = None
 
         perturb_files = []
@@ -2817,6 +2829,14 @@ def run_lightcone(
                 write=write,  # quick hack for running MultiNest
                 cleanup=(cleanup and iz == (len(scrollz) - 1)),
             )
+            mean_f_colls[iz] = (
+                ib2.mean_f_coll_PC if flag_options.PHOTON_CONS else ib2.mean_f_coll
+            )
+            mean_f_coll_MINIs[iz] = (
+                ib2.mean_f_coll_MINI_PC
+                if ib2.flag_options.PHOTON_CONS
+                else ib2.mean_f_coll_MINI
+            )
 
             bt2 = brightness_temperature(
                 ionized_box=ib2,
@@ -2871,9 +2891,14 @@ def run_lightcone(
 
             # Save mean/global quantities
             for quantity in global_quantities:
-                global_q[quantity][iz] = np.mean(
-                    getattr(outs[_fld_names[quantity]][1], quantity)
-                )
+                if quantity == "Nion_box":
+                    global_q[quantity][iz] = np.ma.masked_equal(
+                        getattr(outs[_fld_names[quantity]][1], quantity), 0
+                    ).mean()
+                else:
+                    global_q[quantity][iz] = np.mean(
+                        getattr(outs[_fld_names[quantity]][1], quantity)
+                    )
 
             # Interpolate the lightcone
             if z < max_redshift:
@@ -2943,6 +2968,8 @@ def run_lightcone(
                 lc,
                 node_redshifts=scrollz,
                 global_quantities=global_q,
+                mean_f_colls=mean_f_colls,
+                mean_f_coll_MINIs=mean_f_coll_MINIs,
                 photon_nonconservation_data=photon_nonconservation_data,
                 _globals=dict(global_params.items()),
                 cache_files={
@@ -3217,6 +3244,7 @@ def calibrate_photon_cons(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
             )
 
             ib2 = ionize_box(
@@ -3231,6 +3259,7 @@ def calibrate_photon_cons(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
             )
 
             mean_nf = np.mean(ib2.xH_box)

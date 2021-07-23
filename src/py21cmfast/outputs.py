@@ -540,8 +540,9 @@ class IonizedBox(_AllParamsBox):
             "xH_box": {"init": np.ones, "shape": shape},
             "Gamma12_box": shape,
             "MFP_box": shape,
+            "Nion_box": shape,
             "z_re_box": shape,
-            "dNrec_box": shape,
+            "Nrec_box": shape,
             "temp_kinetic_all_gas": shape,
             "Fcoll": filter_shape,
         }
@@ -578,7 +579,7 @@ class IonizedBox(_AllParamsBox):
             required += ["z_re_box", "Gamma12_box"]
             if self.flag_options.INHOMO_RECO:
                 required += [
-                    "dNrec_box",
+                    "Nrec_box",
                 ]
             if (
                 self.flag_options.USE_MASS_DEPENDENT_ZETA
@@ -1114,6 +1115,8 @@ class LightCone(_HighLevelOutput):
         random_seed,
         lightcones,
         node_redshifts=None,
+        mean_f_colls=None,
+        mean_f_coll_MINIs=None,
         global_quantities=None,
         photon_nonconservation_data=None,
         cache_files: Union[dict, None] = None,
@@ -1130,6 +1133,19 @@ class LightCone(_HighLevelOutput):
 
         # A *copy* of the current global parameters.
         self.global_params = _globals or dict(global_params.items())
+
+        self.Nion_acg = (
+            mean_f_colls
+            * 10 ** astro_params.F_STAR10
+            * 10 ** astro_params.F_ESC10
+            * self.global_params["Pop2_ion"]
+        )
+        self.Nion_mcg = (
+            mean_f_coll_MINIs
+            * 10 ** astro_params.F_STAR7_MINI
+            * 10 ** astro_params.F_ESC7_MINI
+            * self.global_params["Pop3_ion"]
+        )
 
         if global_quantities:
             for name, data in global_quantities.items():

@@ -79,6 +79,7 @@ struct FlagOptions{
     bool M_MIN_in_Mass;
     bool PHOTON_CONS;
     bool FIX_VCB_AVG;
+    bool EVOLVING_R_BUBBLE_MAX;
 };
 
 
@@ -127,13 +128,16 @@ struct IonizedBox{
     int first_box;
     double mean_f_coll;
     double mean_f_coll_MINI;
+    double mean_f_coll_PC;
+    double mean_f_coll_MINI_PC;
     double log10_Mturnover_ave;
     double log10_Mturnover_MINI_ave;
     float *xH_box;
     float *Gamma12_box;
     float *MFP_box;
     float *z_re_box;
-    float *dNrec_box;
+    float *Nrec_box;
+	float *Nion_box;
     float *temp_kinetic_all_gas;
     float *Fcoll;
     float *Fcoll_MINI;
