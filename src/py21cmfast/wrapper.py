@@ -3314,14 +3314,20 @@ def run_kSZ(
         lightcone object over which kSZ effect is calculated. If not provided, defalt parameters are used.
     z_start : float, optional
         Starting redshift for kSZ calculation, default is 5.
-    user_params : `~UserParams`, optional
+    user_params : :class:`~UserParams`, optional
         Defines the overall options and parameters of the run.
     cosmo_params : :class:`~CosmoParams`, optional
         Defines the cosmological parameters used to compute initial conditions.
+    astro_params : :class:`~AstroParams`, optional
+        Defines the astrophysical parameters of the run.
+    flag_options : :class:`~FlagOptions`, optional
+        Options concerning how the reionization process is run, eg. if spin temperature
+        fluctuations are required.
     PARALLEL_APPROX : bool, optional
         Flag for parrallel approximation, if True, parallel approximation is taken which is much quicker, but more approximate. Default: False.
     rotation : bool, optional
         Flag for rotation of boxes, if True boxes are shifted for every HII_DIM, which is the size of the simulation. Default: True.
+
 
     Returns
     -------
