@@ -3295,7 +3295,6 @@ def calibrate_photon_cons(
 def run_kSZ(
     lc=None,
     z_start=5,
-    z_end=15,
     cosmo_params=None,
     user_params=None,
     astro_params=None,
@@ -3315,8 +3314,6 @@ def run_kSZ(
         lightcone object over which kSZ effect is calculated. If not provided, defalt parameters are used.
     z_start : float, optional
         Starting redshift for kSZ calculation, default is 5.
-    z_end : float, optional
-        Ending redshift for kSZ calculation, default is 15.
     user_params : `~UserParams`, optional
         Defines the overall options and parameters of the run.
     cosmo_params : :class:`~CosmoParams`, optional
