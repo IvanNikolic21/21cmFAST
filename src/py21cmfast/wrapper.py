@@ -3387,7 +3387,6 @@ def run_kSZ(
         z_start,
         lc.lightcone_distances[0],
         0.245,  # Helium fraction
-        3,  # redshift of helium reionization, for tau_e calculation
     )
 
     kSZ_consts.mean_taue_curr_z = compute_tau(
@@ -3505,17 +3504,7 @@ class _KszConstants:
     """Constants used for kSZ calculation."""
 
     def __init__(
-        self,
-        HII_DIM,
-        BOX_LEN,
-        hlittle,
-        OMb,
-        red_dist,
-        redshift_start,
-        DA_zstart,
-        Y_He,
-        Zreion_HeII
-        #    mean_taue_curr_z
+        self, HII_DIM, BOX_LEN, hlittle, OMb, red_dist, redshift_start, DA_zstart, Y_He
     ):
         RHOb_cgs = (
             3.0
@@ -3537,4 +3526,3 @@ class _KszConstants:
         self.redshift_start = redshift_start
         self.DA_zstart = DA_zstart
         self.Y_He = Y_He
-        self.Zreion_HeII = Zreion_HeII
