@@ -3343,7 +3343,7 @@ def run_kSZ(
         cosmo_params = lc.cosmo_params
         astro_params = lc.astro_params
         flag_options = lc.flag_options
-        if hasattr(lc, "velocity_x") is False or (lc, "velocity_y") is False:
+        if user_params.OUTPUT_ALL_VEL is False:
             logger.warning(
                 "Using all velocity components is advised with OUTPUT_ALL_VEL=True."
             )
