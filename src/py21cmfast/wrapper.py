@@ -3514,9 +3514,10 @@ class _KszConstants:
             / constants.m_p.cgs.value
         )  # pcm^-3 at z=0
         self.He_No = RHOb_cgs * Y_He / 4.0  # current helium number density estimate
-        self.N_b0 = RHOb_cgs * (
+        self.N_0 = RHOb_cgs * (
             1 - 0.75 * Y_He
         )  # present-day baryon num density, H + He
+        self.N_b0 = self.He_No + self.N_0
         self.dR = BOX_LEN / HII_DIM
         self.CMperMPC = constants.kpc.cgs.value * 1e3
         self.A = self.N_b0 * constants.sigma_T.cgs.value * self.dR * self.CMperMPC
