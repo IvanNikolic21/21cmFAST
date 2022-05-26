@@ -32,13 +32,14 @@ struct UserParams{
     bool FAST_FCOLL_TABLES; //Whether to use the fast Fcoll table approximation in EPS
     bool USE_2LPT;
     bool MINIMIZE_MEMORY;
+    bool USE_SIGMA_ESC;
 };
 
 struct AstroParams{
 
     // Parameters taken from INIT_PARAMS.H
     float HII_EFF_FACTOR;
-
+    float SIGMA_ESC;
     float F_STAR10;
     float ALPHA_STAR;
     float ALPHA_STAR_MINI;

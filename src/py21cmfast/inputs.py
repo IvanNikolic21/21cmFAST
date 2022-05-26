@@ -454,6 +454,8 @@ class UserParams(StructWithDefaults):
     MINIMIZE_MEMORY: bool, optional
         If set, the code will run in a mode that minimizes memory usage, at the expense
         of some CPU/disk-IO. Good for large boxes / small computers.
+    USE_SIGMA_ESC: bool, optional
+        If set, the code uses a new parametrization of the escape fraction, taking care of the scatter.
     """
 
     _ffi = ffi
@@ -473,6 +475,7 @@ class UserParams(StructWithDefaults):
         "FAST_FCOLL_TABLES": False,
         "USE_2LPT": True,
         "MINIMIZE_MEMORY": False,
+        "USE_SIGMA_ESC": False,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -741,6 +744,8 @@ class AstroParams(StructWithDefaults):
     INHOMO_RECO : bool, optional
         Whether inhomogeneous recombinations are being calculated. This is not a part of the
         astro parameters structure, but is required by this class to set some default behaviour.
+    SIGMA_ESC : float, optional
+        Level of scatter in the escape fraction, normalized at 10^10 solar mass. 
     HII_EFF_FACTOR : float, optional
         The ionizing efficiency of high-z galaxies (zeta, from Eq. 2 of Greig+2015).
         Higher values tend to speed up reionization.
@@ -827,6 +832,7 @@ class AstroParams(StructWithDefaults):
 
     _defaults_ = {
         "HII_EFF_FACTOR": 30.0,
+        "SIGMA_ESC": 0.0,
         "F_STAR10": -1.3,
         "F_STAR7_MINI": -2.0,
         "ALPHA_STAR": 0.5,
