@@ -641,6 +641,7 @@ class FlagOptions(StructWithDefaults):
         "M_MIN_in_Mass": False,
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
+        "USE_BETA_ESC": False,
     }
 
     # This checks if relative velocities are off to complain if minihaloes are on
@@ -834,6 +835,7 @@ class AstroParams(StructWithDefaults):
         "F_ESC10": -1.0,
         "F_ESC7_MINI": -2.0,
         "ALPHA_ESC": -0.5,
+        "BETA_ESC": 0.0,
         "M_TURN": 8.7,
         "R_BUBBLE_MAX": None,
         "ION_Tvir_MIN": 4.69897,
