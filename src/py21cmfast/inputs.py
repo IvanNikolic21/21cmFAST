@@ -627,6 +627,8 @@ class FlagOptions(StructWithDefaults):
         Determines whether to use a fixed vcb=VAVG (*regardless* of USE_RELATIVE_VELOCITIES). It includes the average effect of velocities but not its fluctuations. See Muñoz+21 (2110.13919).
     USE_VELS_AUX: bool, optional
         Auxiliary variable (not input) to check if minihaloes are being used without relative velocities and complain
+    USE_BETA_ESC : bool, optional
+        Determines whether to use a power law in redshift for the escape fraction.
     """
 
     _ffi = ffi
@@ -781,6 +783,8 @@ class AstroParams(StructWithDefaults):
     ALPHA_ESC : float, optional
         Power-law index of escape fraction as a function of halo mass. See Sec 2.1 of
         Park+2018.
+    BETA_ESC : float, optional
+        Power-law index of escape fraction as a function of redshift normalized to z=6.
     M_TURN : float, optional
         Turnover mass (in log10 solar mass units) for quenching of star formation in
         halos, due to SNe or photo-heating feedback, or inefficient gas accretion. Only

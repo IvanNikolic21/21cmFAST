@@ -114,8 +114,6 @@ LOG_SUPER_DEBUG("defined parameters");
 
     pixel_volume = pow(user_params->BOX_LEN/((float)(user_params->HII_DIM)), 3);
 
-    //if using BETA_ESC, change the normalization of F_ESC10 and cap it to 1.0
-
     if(flag_options->USE_BETA_ESC){
         F_ESC10_BETA = astro_params->F_ESC10 * pow(((1.0+redshift)/7), astro_params->BETA_ESC);
         if(F_ESC10_BETA > 1.0){ //cap it to one
@@ -608,7 +606,7 @@ LOG_SUPER_DEBUG("sigma table has been initialised");
                                     Nion_General(prev_redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
                                                  astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc);
                 }
-            }//stopped here
+            }
             if (previous_ionize_box->mean_f_coll_MINI * ION_EFF_FACTOR_MINI < 1e-4){
                 box->mean_f_coll_MINI = Nion_General_MINI(redshift,M_MIN,Mturnover_MINI,Mcrit_atom,
                                                           astro_params->ALPHA_STAR_MINI,astro_params->ALPHA_ESC,astro_params->F_STAR7_MINI,
