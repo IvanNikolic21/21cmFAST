@@ -475,6 +475,7 @@ class UserParams(StructWithDefaults):
         "FAST_FCOLL_TABLES": False,
         "USE_2LPT": True,
         "MINIMIZE_MEMORY": False,
+        "OUTPUT_ALL_VEL": False,
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -626,6 +627,10 @@ class FlagOptions(StructWithDefaults):
         Determines whether to use a fixed vcb=VAVG (*regardless* of USE_RELATIVE_VELOCITIES). It includes the average effect of velocities but not its fluctuations. See Muñoz+21 (2110.13919).
     USE_VELS_AUX: bool, optional
         Auxiliary variable (not input) to check if minihaloes are being used without relative velocities and complain
+    EVOLVING_R_BUBBLE_MAX: bool, optional
+        Wmhether to use the redshift-dependent R_BUBBLE_MAX (37pMpc*0.7/hlittle*((1+z)/5)**-4.7
+        from Worseck+14 adjusted index for Becker+21; cap at z>6, i.e. ~40cMpc).
+        This will overide R_BUBBLE_MAX set in AstroParams.
     """
 
     _ffi = ffi
@@ -640,6 +645,8 @@ class FlagOptions(StructWithDefaults):
         "M_MIN_in_Mass": False,
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
+        "USE_VELS_AUX": None,
+        "EVOLVING_R_BUBBLE_MAX": False, 
     }
 
     @property
