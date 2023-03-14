@@ -1050,7 +1050,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 #pragma omp parallel shared(deltax_filtered,N_rec_filtered,xe_filtered,overdense_int_boundexceeded_threaded,log10_Nion_spline,Nion_spline,erfc_denom,erfc_arg_min,\
                             erfc_arg_max,InvArgBinWidth,ArgBinWidth,ERFC_VALS_DIFF,ERFC_VALS,log10_Mturnover_filtered,log10Mturn_min,log10Mturn_bin_width_inv, \
                             log10_Mturnover_MINI_filtered,log10Mturn_bin_width_inv_MINI,log10_Nion_spline_MINI,prev_deltax_filtered,previous_ionize_box,ION_EFF_FACTOR,\
-                            prev_overdense_small_bin_width, overdense_small_bin_width,overdense_small_bin_width_inv,\
+                            prev_overdense_small_bin_width,overdense_small_bin_width,overdense_small_bin_width_inv,\
                             prev_overdense_small_min,prev_overdense_small_bin_width_inv,prev_log10_Nion_spline,prev_log10_Nion_spline_MINI,prev_overdense_large_min,\
                             prev_overdense_large_bin_width_inv,prev_Nion_spline,prev_Nion_spline_MINI,box,counter,M_coll_filtered,massofscaleR,pixel_volume,sigmaMmax,\
                             M_MIN,growth_factor,Mlim_Fstar,Mlim_Fesc,Mcrit_atom,Mlim_Fstar_MINI,Mlim_Fesc_MINI,prev_growth_factor) \
