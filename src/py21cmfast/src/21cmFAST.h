@@ -29,9 +29,10 @@ struct UserParams{
     bool PERTURB_ON_HIGH_RES;
     bool NO_RNG;
     bool USE_INTERPOLATION_TABLES;
-    bool FAST_FCOLL_TABLES; //jbm:Whether to use the fast Fcoll table approximation in EPS
+    bool FAST_FCOLL_TABLES; //Whether to use the fast Fcoll table approximation in EPS
     bool USE_2LPT;
     bool MINIMIZE_MEMORY;
+    bool OUTPUT_ALL_VEL;
 };
 
 struct AstroParams{
@@ -89,7 +90,7 @@ struct InitialConditions{
 };
 
 struct PerturbedField{
-    float *density, *velocity;
+    float *density, *velocity_x, *velocity_y, *velocity;
 };
 
 struct HaloField{
@@ -186,6 +187,8 @@ int ObtainPhotonConsData(double *z_at_Q_data, double *Q_data, int *Ndata_analyti
 
 int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params,
                struct FlagOptions *flag_options, int component, int NUM_OF_REDSHIFT_FOR_LF, float *z_LF, float *M_TURNs, double *M_uv_z, double *M_h_z, double *log10phi);
+
+double tau_e(float zstart, float zend, float *zarry, float *xHarry, int len);
 
 float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_params, int Npoints, float *redshifts, float *global_xHI);
 

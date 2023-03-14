@@ -84,31 +84,38 @@ interpolated onto the lightcone cells):
 
 >>> lightcone = p21.run_lightcone(redshift=z2, max_redshift=z2, z_step_factor=1.03)
 """
+from __future__ import annotations
+
 import logging
 import numpy as np
 import os
+import random
 import warnings
-from astropy import units
-from astropy.cosmology import z_at_value
+from astropy import constants, units
+from astropy.cosmology import Planck15, z_at_value
 from copy import deepcopy
+from powerbox import get_power
 from scipy.interpolate import interp1d
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Callable, Sequence
 
 from ._cfg import config
-from ._utils import (
-    OutputStruct,
-    StructWrapper,
-    _check_compatible_inputs,
-    _process_exitcode,
-)
+from ._utils import OutputStruct, _check_compatible_inputs, _process_exitcode
 from .c_21cmfast import ffi, lib
-from .inputs import AstroParams, CosmoParams, FlagOptions, UserParams, global_params
+from .inputs import (
+    AstroParams,
+    CosmoParams,
+    FlagOptions,
+    UserParams,
+    global_params,
+    validate_all_inputs,
+)
 from .outputs import (
     BrightnessTemp,
     Coeval,
     HaloField,
     InitialConditions,
     IonizedBox,
+    KSZOutput,
     LightCone,
     PerturbedField,
     PerturbHaloField,
@@ -123,7 +130,7 @@ def _configure_inputs(
     defaults: list,
     *datasets,
     ignore: list = ["redshift"],
-    flag_none: [list, None] = None,
+    flag_none: list | None = None,
 ):
     """Configure a set of input parameter structs.
 
@@ -152,7 +159,7 @@ def _configure_inputs(
         OR if the parameter is present in neither defaults not the datasets, and it is
         included in `flag_none`.
     """
-    # First ensure all inputs are compaible in their parameters
+    # First ensure all inputs are compatible in their parameters
     _check_compatible_inputs(*datasets, ignore=ignore)
 
     if flag_none is None:
@@ -241,6 +248,87 @@ def _verify_types(**kwargs):
             raise ValueError(f"{k} must be an instance of {cls.__name__}")
 
 
+def _setup_inputs(
+    input_params: dict[str, Any],
+    input_boxes: dict[str, OutputStruct] | None = None,
+    redshift=-1,
+):
+    """
+    Verify and set up input parameters to any function that runs C code.
+
+    Parameters
+    ----------
+    input_boxes
+        A dictionary of OutputStruct objects that are meant as inputs to the current
+        calculation. These will be verified against each other, and also used to
+        determine redshift, if appropriate.
+    input_params
+        A dictionary of keys and dicts / input structs. This should have the random
+        seed, cosmo/user params and optionally the flag and astro params.
+    redshift
+        Optional value of the redshift. Can be None. If not provided, no redshift is
+        returned.
+
+    Returns
+    -------
+    random_seed
+        The random seed to use, determined from either explicit input or input boxes.
+    input_params
+        The configured input parameter structs, in the order in which they were given.
+    redshift
+        If redshift is given, it will also be output.
+    """
+    input_boxes = input_boxes or {}
+
+    if "flag_options" in input_params and "user_params" not in input_params:
+        raise ValueError("To set flag_options requires user_params")
+    if "astro_params" in input_params and "flag_options" not in input_params:
+        raise ValueError("To set astro_params requires flag_options")
+
+    if input_boxes:
+        _verify_types(**input_boxes)
+
+    params = _configure_inputs(list(input_params.items()), *list(input_boxes.values()))
+
+    if redshift != -1:
+        redshift = configure_redshift(
+            redshift,
+            *[
+                v
+                for k, v in input_boxes.items()
+                if hasattr(v, "redshift") and "prev" not in k
+            ],
+        )
+
+    # This turns params into a dict with all the input parameters in it.
+    params = dict(zip(input_params.keys(), params))
+
+    params["user_params"] = UserParams(params["user_params"])
+    params["cosmo_params"] = CosmoParams(params["cosmo_params"])
+
+    if "flag_options" in params:
+        params["flag_options"] = FlagOptions(
+            params["flag_options"],
+            USE_VELS_AUX=params["user_params"].USE_RELATIVE_VELOCITIES,
+        )
+    if "astro_params" in params:
+        params["astro_params"] = AstroParams(
+            params["astro_params"], INHOMO_RECO=params["flag_options"].INHOMO_RECO
+        )
+
+    # Perform validation between different sets of inputs.
+    validate_all_inputs(**{k: v for k, v in params.items() if k != "random_seed"})
+
+    # Sort the params back into input order.
+    params = [params[k] for k in input_params]
+
+    out = params
+    if redshift != -1:
+        out.append(redshift)
+
+    return out
+
+
 def _call_c_simple(fnc, *args):
     """Call a simple C function that just returns an object.
 
@@ -258,20 +346,22 @@ def _call_c_simple(fnc, *args):
 
 def _get_config_options(
     direc, regenerate, write, hooks
-) -> Tuple[str, bool, Dict[Callable, Dict[str, Any]]]:
+) -> tuple[str, bool, dict[Callable, dict[str, Any]]]:
 
     direc = str(os.path.expanduser(config["direc"] if direc is None else direc))
-    hooks = hooks or {}
 
-    if callable(write) and write not in hooks:
-        hooks[write] = {"direc": direc}
+    if hooks is None or len(hooks) > 0:
+        hooks = hooks or {}
 
-    if not hooks:
-        if write is None:
-            write = config["write"]
+        if callable(write) and write not in hooks:
+            hooks[write] = {"direc": direc}
 
-        if not callable(write) and write:
-            hooks["write"] = {"direc": direc}
+        if not hooks:
+            if write is None:
+                write = config["write"]
+
+            if not callable(write) and write:
+                hooks["write"] = {"direc": direc}
 
     return (
         direc,
@@ -282,7 +372,7 @@ def _get_config_options(
 
 def get_all_fieldnames(
     arrays_only=True, lightcone_only=False, as_dict=False
-) -> Union[Dict[str, str], Set[str]]:
+) -> dict[str, str] | set[str]:
     """Return all possible fieldnames in output structs.
 
     Parameters
@@ -359,8 +449,9 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None):
         If `redshifts` and `global_xHI` have inconsistent length or if redshifts are not
         in ascending order.
     """
-    user_params = UserParams(user_params)
-    cosmo_params = CosmoParams(cosmo_params)
+    user_params, cosmo_params = _setup_inputs(
+        {"user_params": user_params, "cosmo_params": cosmo_params}
+    )
 
     if len(redshifts) != len(global_xHI):
         raise ValueError("redshifts and global_xHI must have same length")
@@ -428,11 +519,13 @@ def compute_luminosity_function(
         Number density of haloes corresponding to each bin defined by `Muvfunc`.
         Shape [nredshifts, nbins].
     """
-    user_params = UserParams(user_params)
-    cosmo_params = CosmoParams(cosmo_params)
-    astro_params = AstroParams(astro_params)
-    flag_options = FlagOptions(
-        flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+    user_params, cosmo_params, astro_params, flag_options = _setup_inputs(
+        {
+            "user_params": user_params,
+            "cosmo_params": cosmo_params,
+            "astro_params": astro_params,
+            "flag_options": flag_options,
+        }
     )
 
     redshifts = np.array(redshifts, dtype="float32")
@@ -460,7 +553,7 @@ def compute_luminosity_function(
                 )
                 return None, None, None
 
-            mturnovers_mini = np.array(mturnovers, dtype="float32")
+            mturnovers_mini = np.array(mturnovers_mini, dtype="float32")
             if len(mturnovers_mini) != len(redshifts):
                 logger.warning(
                     "mturnovers_MINI(%d) does not match the length of redshifts (%d)"
@@ -470,7 +563,7 @@ def compute_luminosity_function(
 
     else:
         mturnovers = (
-            np.zeros(len(redshifts), dtype="float32") + 10 ** astro_params.M_TURN
+            np.zeros(len(redshifts), dtype="float32") + 10**astro_params.M_TURN
         )
         component = 1
 
@@ -815,7 +908,7 @@ def initial_conditions(
     regenerate=None,
     write=None,
     direc=None,
-    hooks: Optional[Dict[Callable, Dict[str, Any]]] = None,
+    hooks: dict[Callable, dict[str, Any]] | None = None,
     **global_kwargs,
 ) -> InitialConditions:
     r"""
@@ -856,8 +949,9 @@ def initial_conditions(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
+        user_params, cosmo_params = _setup_inputs(
+            {"user_params": user_params, "cosmo_params": cosmo_params}
+        )
 
         # Initialize memory for the boxes that will be returned.
         boxes = InitialConditions(
@@ -891,7 +985,7 @@ def perturb_field(
     regenerate=None,
     write=None,
     direc=None,
-    hooks: Optional[Dict[Callable, Dict[str, Any]]] = None,
+    hooks: dict[Callable, dict[str, Any]] | None = None,
     **global_kwargs,
 ) -> PerturbedField:
     r"""
@@ -953,21 +1047,15 @@ def perturb_field(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        _verify_types(init_boxes=init_boxes)
-
-        # Configure and check input/output parameters/structs
-        random_seed, user_params, cosmo_params = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-            ],
-            init_boxes,
+        random_seed, user_params, cosmo_params, redshift = _setup_inputs(
+            {
+                "random_seed": random_seed,
+                "user_params": user_params,
+                "cosmo_params": cosmo_params,
+            },
+            input_boxes={"init_boxes": init_boxes},
+            redshift=redshift,
         )
-
-        # Verify input parameter structs (need to do this after configure_inputs).
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
 
         # Initialize perturbed boxes.
         fields = PerturbedField(
@@ -1064,8 +1152,6 @@ def determine_halo_list(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        _verify_types(init_boxes=init_boxes)
-
         # Configure and check input/output parameters/structs
         (
             random_seed,
@@ -1073,24 +1159,18 @@ def determine_halo_list(
             cosmo_params,
             astro_params,
             flag_options,
-        ) = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-                ("astro_params", astro_params),
-                ("flag_options", flag_options),
-            ],
-            init_boxes,
+            redshift,
+        ) = _setup_inputs(
+            {
+                "random_seed": random_seed,
+                "user_params": user_params,
+                "cosmo_params": cosmo_params,
+                "astro_params": astro_params,
+                "flag_options": flag_options,
+            },
+            {"init_boxes": init_boxes},
+            redshift=redshift,
         )
-
-        # Verify input parameter structs (need to do this after configure_inputs).
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
-        flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
-        )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if user_params.HMF != 1:
             raise ValueError("USE_HALO_FIELD is only valid for HMF = 1")
@@ -1192,11 +1272,6 @@ def perturb_halo_list(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        _verify_types(
-            init_boxes=init_boxes,
-            halo_field=halo_field,
-        )
-
         # Configure and check input/output parameters/structs
         (
             random_seed,
@@ -1204,26 +1279,18 @@ def perturb_halo_list(
             cosmo_params,
             astro_params,
             flag_options,
-        ) = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-                ("astro_params", astro_params),
-                ("flag_options", flag_options),
-            ],
-            init_boxes,
-            halo_field,
+            redshift,
+        ) = _setup_inputs(
+            {
+                "random_seed": random_seed,
+                "user_params": user_params,
+                "cosmo_params": cosmo_params,
+                "astro_params": astro_params,
+                "flag_options": flag_options,
+            },
+            {"init_boxes": init_boxes, "halo_field": halo_field},
+            redshift=redshift,
         )
-        redshift = configure_redshift(redshift, halo_field)
-
-        # Verify input parameter structs (need to do this after configure_inputs).
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
-        flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
-        )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if user_params.HMF != 1:
             raise ValueError("USE_HALO_FIELD is only valid for HMF = 1")
@@ -1447,36 +1514,25 @@ def ionize_box(
             cosmo_params,
             astro_params,
             flag_options,
-        ) = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-                ("astro_params", astro_params),
-                ("flag_options", flag_options),
-            ],
-            init_boxes,
-            spin_temp,
-            init_boxes,
-            perturbed_field,
-            previous_perturbed_field,
-            previous_ionize_box,
-            pt_halos,
-        )
-        redshift = configure_redshift(
             redshift,
-            spin_temp,
-            perturbed_field,
-            pt_halos,
+        ) = _setup_inputs(
+            {
+                "random_seed": random_seed,
+                "user_params": user_params,
+                "cosmo_params": cosmo_params,
+                "astro_params": astro_params,
+                "flag_options": flag_options,
+            },
+            {
+                "init_boxes": init_boxes,
+                "perturbed_field": perturbed_field,
+                "previous_perturbed_field": previous_perturbed_field,
+                "previous_ionize_box": previous_ionize_box,
+                "spin_temp": spin_temp,
+                "pt_halos": pt_halos,
+            },
+            redshift=redshift,
         )
-
-        # Verify input structs
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
-        flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
-        )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if spin_temp is not None and not flag_options.USE_TS_FLUCT:
             logger.warning(
@@ -1779,12 +1835,6 @@ def spin_temperature(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        _verify_types(
-            init_boxes=init_boxes,
-            perturbed_field=perturbed_field,
-            previous_spin_temp=previous_spin_temp,
-        )
-
         # Configure and check input/output parameters/structs
         (
             random_seed,
@@ -1792,18 +1842,19 @@ def spin_temperature(
             cosmo_params,
             astro_params,
             flag_options,
-        ) = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-                ("astro_params", astro_params),
-                ("flag_options", flag_options),
-            ],
-            init_boxes,
-            previous_spin_temp,
-            init_boxes,
-            perturbed_field,
+        ) = _setup_inputs(
+            {
+                "random_seed": random_seed,
+                "user_params": user_params,
+                "cosmo_params": cosmo_params,
+                "astro_params": astro_params,
+                "flag_options": flag_options,
+            },
+            {
+                "init_boxes": init_boxes,
+                "perturbed_field": perturbed_field,
+                "previous_spin_temp": previous_spin_temp,
+            },
         )
 
         # Try to determine redshift from other inputs, if required.
@@ -1819,12 +1870,6 @@ def spin_temperature(
                 raise ValueError(
                     "Either the redshift, perturbed_field or previous_spin_temp must be given."
                 )
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
-        flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
-        )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         # Explicitly set this flag to True, though it shouldn't be required!
         flag_options.update(USE_TS_FLUCT=True)
@@ -2147,23 +2192,22 @@ def run_coeval(
             pt_halos = [pt_halos] if not hasattr(pt_halos, "__len__") else []
         else:
             pt_halos = []
-        random_seed, user_params, cosmo_params = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-            ],
-            init_box,
-            *perturb,
-            *pt_halos,
-        )
 
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
-        flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+        (
+            random_seed,
+            user_params,
+            cosmo_params,
+            astro_params,
+            flag_options,
+        ) = _setup_inputs(
+            {
+                "random_seed": random_seed,
+                "user_params": user_params,
+                "cosmo_params": cosmo_params,
+                "astro_params": astro_params,
+                "flag_options": flag_options,
+            },
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if use_interp_perturb_field and flag_options.USE_MINI_HALOS:
             raise ValueError("Cannot use an interpolated perturb field with minihalos!")
@@ -2491,6 +2535,8 @@ def run_lightcone(
     cleanup=True,
     hooks=None,
     always_purge: bool = False,
+    rotation_cubes=False,
+    los_axis=2,
     **global_kwargs,
 ):
     r"""
@@ -2563,6 +2609,13 @@ def run_lightcone(
         If switched on, the routine will do all it can to minimize peak memory usage.
         This will be at the cost of disk I/O and CPU time. Recommended to only set this
         if you are running particularly large boxes, or have low RAM.
+    rotation_cubes : bool, optional
+        Whether to rotate the lightcone during the interpolation. If True it will use a different
+        line of sight after every HII_DIM. Lightcone will have breaks, but will not have structure
+        repetition.
+    los_axis : int, optional
+        Line of sight of the lightcone interpolation. 0 is for x direction, 1 is for y direction
+        2 is for z direction. Default is 2.
     \*\*global_kwargs :
         Any attributes for :class:`~py21cmfast.inputs.GlobalParams`. This will
         *temporarily* set global attributes for the duration of the function. Note that
@@ -2583,22 +2636,25 @@ def run_lightcone(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        random_seed, user_params, cosmo_params = _configure_inputs(
-            [
-                ("random_seed", random_seed),
-                ("user_params", user_params),
-                ("cosmo_params", cosmo_params),
-            ],
-            init_box,
-            perturb,
-        )
 
-        user_params = UserParams(user_params)
-        cosmo_params = CosmoParams(cosmo_params)
-        flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+        (
+            random_seed,
+            user_params,
+            cosmo_params,
+            flag_options,
+            astro_params,
+            redshift,
+        ) = _setup_inputs(
+            {
+                "random_seed": random_seed,
+                "user_params": user_params,
+                "cosmo_params": cosmo_params,
+                "flag_options": flag_options,
+                "astro_params": astro_params,
+            },
+            {"init_box": init_box, "perturb": perturb},
+            redshift=redshift,
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if user_params.MINIMIZE_MEMORY and not write:
             raise ValueError(
@@ -2609,8 +2665,6 @@ def run_lightcone(
         _fld_names = _get_interpolation_outputs(
             list(lightcone_quantities), list(global_quantities), flag_options
         )
-
-        redshift = configure_redshift(redshift, perturb)
 
         max_redshift = (
             global_params.Z_HEAT_MAX
@@ -2731,6 +2785,7 @@ def run_lightcone(
         st, ib, bt, prev_perturb = None, None, None, None
         lc_index = 0
         box_index = 0
+        rot_index = 0
         lc = {
             quantity: np.zeros(
                 (user_params.HII_DIM, user_params.HII_DIM, n_lightcone),
@@ -2752,6 +2807,9 @@ def run_lightcone(
         spin_temp_files = []
         ionize_files = []
         brightness_files = []
+
+        log10_mturnovers = np.zeros(len(scrollz))
+        log10_mturnovers_mini = np.zeros(len(scrollz))
         for iz, z in enumerate(scrollz):
             # Best to get a perturb for this redshift, to pass to brightness_temperature
             pf2 = perturb[iz]
@@ -2815,14 +2873,8 @@ def run_lightcone(
                 write=write,  # quick hack for running MultiNest
                 cleanup=(cleanup and iz == (len(scrollz) - 1)),
             )
-            mean_f_colls[iz] = (
-                ib2.mean_f_coll_PC if flag_options.PHOTON_CONS else ib2.mean_f_coll
-            )
-            mean_f_coll_MINIs[iz] = (
-                ib2.mean_f_coll_MINI_PC
-                if ib2.flag_options.PHOTON_CONS
-                else ib2.mean_f_coll_MINI
-            )
+            log10_mturnovers[iz] = ib2.log10_Mturnover_ave
+            log10_mturnovers_mini[iz] = ib2.log10_Mturnover_MINI_ave
 
             bt2 = brightness_temperature(
                 ionized_box=ib2,
@@ -2893,6 +2945,7 @@ def run_lightcone(
                     fnc = interp_functions.get(quantity, "mean")
 
                     n = _interpolate_in_redshift(
+                        los_axis,
                         iz,
                         box_index,
                         lc_index,
@@ -2907,6 +2960,10 @@ def run_lightcone(
                     )
                 lc_index += n
                 box_index += n
+                rot_index += n
+                if rotation_cubes and rot_index >= user_params.HII_DIM:
+                    los_axis = (los_axis + 1) % 3
+                    rot_index -= user_params.HII_DIM
 
             # Save current ones as old ones.
             if flag_options.USE_TS_FLUCT:
@@ -2960,6 +3017,8 @@ def run_lightcone(
                     "brightness_temp": brightness_files,
                     "spin_temp": spin_temp_files,
                 },
+                log10_mturnovers=log10_mturnovers,
+                log10_mturnovers_mini=log10_mturnovers_mini,
             ),
             coeval_callback_output,
         )
@@ -2970,8 +3029,8 @@ def run_lightcone(
 
 
 def _get_coeval_callbacks(
-    scrollz: List[float], coeval_callback, coeval_callback_redshifts
-) -> List[bool]:
+    scrollz: list[float], coeval_callback, coeval_callback_redshifts
+) -> list[bool]:
 
     compute_coeval_callback = [False for i in range(len(scrollz))]
     if coeval_callback is not None:
@@ -3001,7 +3060,7 @@ def _get_interpolation_outputs(
     lightcone_quantities: Sequence,
     global_quantities: Sequence,
     flag_options: FlagOptions,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     _fld_names = get_all_fieldnames(arrays_only=True, lightcone_only=True, as_dict=True)
 
     incorrect_lc = [q for q in lightcone_quantities if q not in _fld_names.keys()]
@@ -3028,6 +3087,7 @@ def _get_interpolation_outputs(
 
 
 def _interpolate_in_redshift(
+    los_axis,
     z_index,
     box_index,
     lc_index,
@@ -3040,9 +3100,16 @@ def _interpolate_in_redshift(
     lc,
     kind="mean",
 ):
+    # If rotating lighcones, change velocity_component.
+    quantity_td = quantity
+    if quantity == "velocity" and los_axis == 0:
+        quantity_td = "velocity_x"
+    if quantity == "velocity" and los_axis == 1:
+        quantity_td = "velocity_y"
+
     try:
-        array = getattr(output_obj, quantity)
-        array2 = getattr(output_obj2, quantity)
+        array = getattr(output_obj, quantity_td)
+        array2 = getattr(output_obj2, quantity_td)
     except AttributeError:
         raise AttributeError(
             f"{quantity} is not a valid field of {output_obj.__class__.__name__}"
@@ -3062,8 +3129,16 @@ def _interpolate_in_redshift(
     n = len(these_distances)
     ind = np.arange(-(box_index + n), -box_index)
 
-    sub_array = array.take(ind + n_lightcone, axis=2, mode="wrap")
-    sub_array2 = array2.take(ind + n_lightcone, axis=2, mode="wrap")
+    sub_array = array.take(ind + n_lightcone, axis=los_axis, mode="wrap")
+    sub_array2 = array2.take(ind + n_lightcone, axis=los_axis, mode="wrap")
+
+    # Adjust matrices.
+    if los_axis == 0:
+        sub_array = np.moveaxis(sub_array, 0, -1)
+        sub_array2 = np.moveaxis(sub_array2, 0, -1)
+    if los_axis == 1:
+        sub_array = np.moveaxis(sub_array, -1, 0)
+        sub_array2 = np.moveaxis(sub_array2, -1, 0)
 
     out = (
         np.abs(this_d - these_distances) * sub_array
@@ -3255,3 +3330,240 @@ def calibrate_photon_cons(
             nf_estimate=neutral_fraction_photon_cons,
             NSpline=len(z_for_photon_cons),
         )
+
+
+def run_kSZ(
+    lc=None,
+    z_start=5,
+    cosmo_params=None,
+    user_params=None,
+    astro_params=None,
+    flag_options=None,
+    PARALLEL_APPROX=False,
+    rotation=True,
+    random_seed=1,
+):
+    r"""
+    run_kSZ calculates the patchy kinetic Sunyaev-Zel'dovich signal using a 21cmFAST lighcone with density, velocity, velocity_y, velocity_x and xH_box lighcone quantities.
+
+    The function takes the cosmological quantities used in the lightcone when applicable.
+
+    Parameters
+    ----------
+    lc: :class:`~LightCone`, optional
+        lightcone object over which kSZ effect is calculated. If not provided, defalt parameters are used.
+    z_start : float, optional
+        Starting redshift for kSZ calculation, default is 5.
+    user_params : :class:`~UserParams`, optional
+        Defines the overall options and parameters of the run.
+    cosmo_params : :class:`~CosmoParams`, optional
+        Defines the cosmological parameters used to compute initial conditions.
+    astro_params : :class:`~AstroParams`, optional
+        Defines the astrophysical parameters of the run.
+    flag_options : :class:`~FlagOptions`, optional
+        Options concerning how the reionization process is run, eg. if spin temperature
+        fluctuations are required.
+    PARALLEL_APPROX : bool, optional
+        Flag for parrallel approximation, if True, parallel approximation is taken which is much quicker, but more approximate. Default: False.
+    rotation : bool, optional
+        Flag for rotation of boxes, if True boxes are shifted for every HII_DIM, which is the size of the simulation. Default: True.
+
+
+    Returns
+    -------
+    KSZOutput :
+        KSZ_box: map of the kSZ effect, in Kelvins.
+        taue_boxp: map of the optical depth.
+        l_s :  multipole moments of the power spectrum.
+        kSZ_power: Power spectrum of the kSZ effect.
+        err: Poisson error for the power spectrum.
+    """
+    if lc:
+        user_params = lc.user_params
+        cosmo_params = lc.cosmo_params
+        astro_params = lc.astro_params
+        flag_options = lc.flag_options
+        if user_params.OUTPUT_ALL_VEL is False:
+            logger.warning(
+                "Using all velocity components is advised with OUTPUT_ALL_VEL=True."
+            )
+    else:
+        if user_params is None:
+            user_params = UserParams(**UserParams._defaults_)
+        if cosmo_params is None:
+            cosmo_params = CosmoParams(**CosmoParams._defaults_)
+        if astro_params is None:
+            astro_params = AstroParams(**AstroParams._defaults_)
+        if flag_options is None:
+            flag_options = FlagOptions(**FlagOptions._defaults_)
+        lc_quantities = (
+            "brightness_temp",
+            "xH_box",
+            "density",
+            "velocity",
+            "velocity_y",
+            "velocity_x",
+        )
+        lc = run_lightcone(
+            redshift=z_start,
+            user_params=user_params,
+            cosmo_params=cosmo_params,
+            astro_params=astro_params,
+            flag_options=flag_options,
+            lightcone_quantities=lc_quantities,
+            random_seed=random_seed,
+        )
+        logger.warning(
+            "run_kSZ requires a lightcone object, which is not given. Running with default parameters."
+        )
+    random.seed(random_seed)
+
+    kSZ_consts = _KszConstants(
+        lc.user_params.HII_DIM,
+        lc.user_params.BOX_LEN,
+        lc.cosmo_params.hlittle,
+        lc.cosmo_params.OMb,
+        len(lc.lightcone_redshifts),
+        z_start,
+        lc.lightcone_distances[0],
+        0.245,  # Helium fraction
+    )
+
+    kSZ_consts.mean_taue_curr_z = compute_tau(
+        redshifts=[z_start],
+        global_xHI=[1],
+        user_params=user_params,
+        cosmo_params=cosmo_params,
+    )
+    Tcmb, mean_taue_fin = _Proj_array(
+        lc.lightcone_redshifts,
+        lc.density,
+        lc.velocity,
+        lc.xH_box,
+        kSZ_consts,
+        PARALLEL_APPROX=PARALLEL_APPROX,
+        rotation=rotation,
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        P_k, l_s, err = get_power(
+            Tcmb
+            * kSZ_consts.CMperMPC
+            / constants.c.cgs.value
+            * 1e6
+            * Planck15.Tcmb0.value
+            / np.sqrt(2 * np.pi),
+            lc.user_params.BOX_LEN,
+            bins=30,
+            log_bins=True,
+            get_variance=True,
+        )  # in microK^2
+    P_k = P_k * l_s ** 2
+    err = np.sqrt(err) * l_s ** 2
+    l_s *= lc.lightcone_distances[0]
+    return KSZOutput(
+        Tcmb * kSZ_consts.CMperMPC / constants.c.cgs.value * Planck15.Tcmb0.value,
+        mean_taue_fin,
+        l_s=l_s[np.logical_not(np.isnan(l_s))],
+        kSZ_power=P_k[np.logical_not(np.isnan(l_s))],
+        err=err[np.logical_not(np.isnan(l_s))],
+    )
+
+
+def _Proj_array(
+    redshifts,
+    density,
+    velocity,
+    xH,
+    kSZ_consts,
+    PARALLEL_APPROX=False,
+    rotation=False,
+):
+    """Do the actual projection."""
+    dtau_3d = (
+        kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4 - xH)
+    )  # this is used for tau_e contribution
+    if not (PARALLEL_APPROX or rotation):
+        # pay attention to the z order here in cumsum
+        taue_arry = (
+            np.cumsum(dtau_3d * (1 + redshifts) ** 2, axis=2)
+            + kSZ_consts.mean_taue_curr_z
+        )
+        Tcmb = dtau_3d * velocity * (1 + redshifts) * np.exp(-taue_arry)
+        taue_arry = taue_arry[-1]
+    else:
+        inc = 1
+        inc_displacement = kSZ_consts.dR / kSZ_consts.DA_zstart
+        Tcmb_3d = (
+            kSZ_consts.A * velocity * (1.08 - xH) * (1.0 + density)
+        )  # this is used for tcmb contribution
+        taue_arry = np.full(
+            (kSZ_consts.HII_DIM, kSZ_consts.HII_DIM), kSZ_consts.mean_taue_curr_z
+        )
+        Tcmb = np.zeros((kSZ_consts.HII_DIM, kSZ_consts.HII_DIM))
+        for k in range(kSZ_consts.red_dist):
+            dtau_new = (
+                dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
+            )  # tcmb and tau_e contribution with appropriate redshift dependecies
+            Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
+            if not PARALLEL_APPROX:
+                a = np.round(
+                    np.arange(-kSZ_consts.HII_DIM / 2, kSZ_consts.HII_DIM / 2) * inc
+                    + kSZ_consts.HII_DIM * 3 / 2
+                ).astype(
+                    int
+                )  # This part assumes that the center of the field is the center of the observation
+                inc += inc_displacement  # increment for ray tracing
+                dtau_new = np.take(dtau_new, a, axis=0, mode="wrap")
+                dtau_new = np.take(dtau_new, a, axis=1, mode="wrap")
+                Tcmb_new = np.take(Tcmb_new, a, axis=0, mode="wrap")
+                Tcmb_new = np.take(Tcmb_new, a, axis=1, mode="wrap")
+            if rotation:
+                if k % kSZ_consts.HII_DIM == 0:
+                    tx = int(kSZ_consts.HII_DIM * random.random())
+                    ty = int(kSZ_consts.HII_DIM * random.random())
+                dtau_new = np.roll(
+                    dtau_new, -tx, 0
+                )  # shifting of tcmb so there is no object repetition
+                dtau_new = np.roll(dtau_new, -ty, 1)
+                Tcmb_new = np.roll(
+                    Tcmb_new, -tx, 0
+                )  # shifting of tcmb so there is no object repetition
+                Tcmb_new = np.roll(Tcmb_new, -ty, 1)
+            taue_arry += dtau_new  # tau_e updating
+            Tcmb += Tcmb_new * np.exp(
+                -taue_arry
+            )  # tcmb contribution with tau_e taken in account
+    mean_taue_fin = np.mean(taue_arry)
+    Tcmb = Tcmb - np.mean(Tcmb)
+    return Tcmb, mean_taue_fin
+
+
+class _KszConstants:
+    """Constants used for kSZ calculation."""
+
+    def __init__(
+        self, HII_DIM, BOX_LEN, hlittle, OMb, red_dist, redshift_start, DA_zstart, Y_He
+    ):
+        RHOb_cgs = (
+            3.0
+            * (hlittle * 3.2407e-18) ** 2
+            / (8.0 * np.pi * constants.G.cgs.value)
+            * OMb
+            / constants.m_p.cgs.value
+        )  # pcm^-3 at z=0
+        self.He_No = RHOb_cgs * Y_He / 4.0  # current helium number density estimate
+        self.N_0 = RHOb_cgs * (
+            1 - 0.75 * Y_He
+        )  # present-day baryon num density, H + He
+        self.N_b0 = self.He_No + self.N_0
+        self.dR = BOX_LEN / HII_DIM
+        self.CMperMPC = constants.kpc.cgs.value * 1e3
+        self.A = self.N_b0 * constants.sigma_T.cgs.value * self.dR * self.CMperMPC
+        self.HII_DIM = HII_DIM
+        self.BOX_LEN = BOX_LEN
+        self.red_dist = red_dist
+        self.redshift_start = redshift_start
+        self.DA_zstart = DA_zstart
+        self.Y_He = Y_He
