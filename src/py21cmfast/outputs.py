@@ -37,7 +37,6 @@ class _OutputStruct(_BaseOutputStruct):
     _global_params = global_params
 
     def __init__(self, *, user_params=None, cosmo_params=None, **kwargs):
-
         self.cosmo_params = cosmo_params or CosmoParams()
         self.user_params = user_params or UserParams()
 
@@ -128,8 +127,12 @@ class InitialConditions(_OutputStruct):
         self.prepare(keep=keep, force=force)
 
     def _get_box_structures(self) -> dict[str, dict | tuple[int]]:
-        shape = (self.user_params.HII_DIM,) * 3
-        hires_shape = (self.user_params.DIM,) * 3
+        shape = (self.user_params.HII_DIM,) * 2 + (
+            int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),
+        )
+        hires_shape = (self.user_params.DIM,) * 2 + (
+            int(self.user_params.NON_CUBIC_FACTOR * self.user_params.DIM),
+        )
 
         out = {
             "lowres_density": shape,
@@ -206,15 +209,21 @@ class PerturbedField(_OutputStructZ):
     def _get_box_structures(self) -> dict[str, dict | tuple[int]]:
         if self.user_params.OUTPUT_ALL_VEL:
             return {
-                "density": (self.user_params.HII_DIM,) * 3,
-                "velocity_x": (self.user_params.HII_DIM,) * 3,
-                "velocity_y": (self.user_params.HII_DIM,) * 3,
-                "velocity": (self.user_params.HII_DIM,) * 3,
+                "density": (self.user_params.HII_DIM,) * 2
+                + (int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),),
+                "velocity_x": (self.user_params.HII_DIM,) * 2
+                + (int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),),
+                "velocity_y": (self.user_params.HII_DIM,) * 2
+                + (int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),),
+                "velocity": (self.user_params.HII_DIM,) * 2
+                + (int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),),
             }
         else:
             return {
-                "density": (self.user_params.HII_DIM,) * 3,
-                "velocity": (self.user_params.HII_DIM,) * 3,
+                "density": (self.user_params.HII_DIM,) * 2
+                + (int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),),
+                "velocity": (self.user_params.HII_DIM,) * 2
+                + (int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),),
             }
 
     def get_required_input_arrays(self, input_box: _BaseOutputStruct) -> list[str]:
@@ -275,7 +284,6 @@ class _AllParamsBox(_OutputStructZ):
         *,
         astro_params: AstroParams | None = None,
         flag_options: FlagOptions | None = None,
-        first_box: bool = False,
         **kwargs,
     ):
         self.flag_options = flag_options or FlagOptions()
@@ -285,11 +293,6 @@ class _AllParamsBox(_OutputStructZ):
 
         self.log10_Mturnover_ave = 0.0
         self.log10_Mturnover_MINI_ave = 0.0
-
-        self.first_box = first_box
-        if first_box:
-            self.mean_f_coll = 0.0
-            self.mean_f_coll_MINI = 0.0
 
         super().__init__(**kwargs)
 
@@ -412,7 +415,9 @@ class TsBox(_AllParamsBox):
         super().__init__(**kwargs)
 
     def _get_box_structures(self) -> dict[str, dict | tuple[int]]:
-        shape = (self.user_params.HII_DIM,) * 3
+        shape = (self.user_params.HII_DIM,) * 2 + (
+            int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),
+        )
         return {
             "Ts_box": shape,
             "x_e_box": shape,
@@ -535,7 +540,9 @@ class IonizedBox(_AllParamsBox):
         else:
             n_filtering = 1
 
-        shape = (self.user_params.HII_DIM,) * 3
+        shape = (self.user_params.HII_DIM,) * 2 + (
+            int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),
+        )
         filter_shape = (n_filtering,) + shape
 
         out = {
@@ -544,7 +551,7 @@ class IonizedBox(_AllParamsBox):
             "MFP_box": shape,
             "Nion_box": shape,
             "z_re_box": shape,
-            "Nrec_box": shape,
+            "dNrec_box": shape,
             "temp_kinetic_all_gas": shape,
             "Fcoll": filter_shape,
         }
@@ -581,7 +588,7 @@ class IonizedBox(_AllParamsBox):
             required += ["z_re_box", "Gamma12_box"]
             if self.flag_options.INHOMO_RECO:
                 required += [
-                    "Nrec_box",
+                    "dNrec_box",
                 ]
             if (
                 self.flag_options.USE_MASS_DEPENDENT_ZETA
@@ -635,7 +642,10 @@ class BrightnessTemp(_AllParamsBox):
     _filter_params = _OutputStructZ._filter_params
 
     def _get_box_structures(self) -> dict[str, dict | tuple[int]]:
-        return {"brightness_temp": (self.user_params.HII_DIM,) * 3}
+        return {
+            "brightness_temp": (self.user_params.HII_DIM,) * 2
+            + (int(self.user_params.NON_CUBIC_FACTOR * self.user_params.HII_DIM),)
+        }
 
     @cached_property
     def global_Tb(self):
@@ -1117,8 +1127,6 @@ class LightCone(_HighLevelOutput):
         random_seed,
         lightcones,
         node_redshifts=None,
-        mean_f_colls=None,
-        mean_f_coll_MINIs=None,
         global_quantities=None,
         photon_nonconservation_data=None,
         cache_files: dict | None = None,
@@ -1139,19 +1147,6 @@ class LightCone(_HighLevelOutput):
 
         # A *copy* of the current global parameters.
         self.global_params = _globals or dict(global_params.items())
-
-        self.Nion_acg = (
-            mean_f_colls
-            * 10 ** astro_params.F_STAR10
-            * 10 ** astro_params.F_ESC10
-            * self.global_params["Pop2_ion"]
-        )
-        self.Nion_mcg = (
-            mean_f_coll_MINIs
-            * 10 ** astro_params.F_STAR7_MINI
-            * 10 ** astro_params.F_ESC7_MINI
-            * self.global_params["Pop3_ion"]
-        )
 
         if global_quantities:
             for name, data in global_quantities.items():
@@ -1251,7 +1246,7 @@ class LightCone(_HighLevelOutput):
     def _read_inputs(cls, fname):
         kwargs = {}
         with h5py.File(fname, "r") as fl:
-            for (k, kls) in [
+            for k, kls in [
                 ("user_params", UserParams),
                 ("cosmo_params", CosmoParams),
                 ("flag_options", FlagOptions),

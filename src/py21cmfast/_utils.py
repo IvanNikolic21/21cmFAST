@@ -250,7 +250,6 @@ class StructWrapper:
     _ffi = None
 
     def __init__(self):
-
         # Set the name of this struct in the C code
         self._name = self._get_name()
 
@@ -365,9 +364,7 @@ class StructWithDefaults(StructWrapper):
     _defaults_ = {}
 
     def __init__(self, *args, **kwargs):
-
         super().__init__()
-
         if args:
             if len(args) > 1:
                 raise TypeError(
@@ -387,7 +384,6 @@ class StructWithDefaults(StructWrapper):
                 )
 
         for k, v in self._defaults_.items():
-
             # Prefer arguments given to the constructor.
             _v = kwargs.pop(k, None)
 
@@ -401,7 +397,7 @@ class StructWithDefaults(StructWrapper):
                 setattr(self, "_" + k, v)
 
         if kwargs:
-            logger.warning(
+            warnings.warn(
                 "The following parameters to {thisclass} are not supported: {lst}".format(
                     thisclass=self.__class__.__name__, lst=list(kwargs.keys())
                 )
@@ -461,7 +457,6 @@ class StructWithDefaults(StructWrapper):
     def __call__(self):
         """Return a filled C Structure corresponding to this instance."""
         for key, val in self.pystruct.items():
-
             # Find the value of this key in the current class
             if isinstance(val, str):
                 # If it is a string, need to convert it to C string ourselves.
@@ -625,7 +620,6 @@ class OutputStruct(StructWrapper, metaclass=ABCMeta):
         self._random_seed = random_seed
 
         for k in self._inputs:
-
             if k not in self.__dict__:
                 try:
                     setattr(self, k, kwargs.pop(k))
@@ -1226,7 +1220,6 @@ class OutputStruct(StructWrapper, metaclass=ABCMeta):
             fname = path.join(direc, fname)
 
         with h5py.File(fname, "r") as fl:
-
             if h5_group is not None:
                 self = cls(**cls._read_inputs(fl[h5_group]))
             else:
@@ -1486,7 +1479,6 @@ class OutputStruct(StructWrapper, metaclass=ABCMeta):
             hooks = {"write": {"direc": config["direc"]}}
 
         for hook, params in hooks.items():
-
             if callable(hook):
                 hook(self, **params)
             else:
