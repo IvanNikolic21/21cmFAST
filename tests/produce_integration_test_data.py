@@ -226,6 +226,14 @@ OPTIONS = {
             "USE_RELATIVE_VELOCITIES": True,
         },
     ],
+    "lyman_alpha_heating": [
+        8,
+        {"N_THREADS": 4, "USE_CMB_HEATING": False},
+    ],
+    "cmb_heating": [
+        8,
+        {"N_THREADS": 4, "USE_LYA_HEATING": False},
+    ],
 }
 
 if len(set(OPTIONS.keys())) != len(list(OPTIONS.keys())):
@@ -522,7 +530,6 @@ def produce_data_for_perturb_field_tests(name, redshift, force, **kwargs):
 
 
 def produce_data_for_halo_field_tests(name, redshift, force, **kwargs):
-
     pt_halos = produce_halo_field_data(redshift, **kwargs)
 
     fname = get_filename("halo_field_data", name)
