@@ -3193,6 +3193,7 @@ def calibrate_photon_cons(
             USE_MASS_DEPENDENT_ZETA=flag_options.USE_MASS_DEPENDENT_ZETA,
             M_MIN_in_Mass=flag_options.M_MIN_in_Mass,
             USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES,
+            USE_MINI_HALOS = False,
         )
 
         ib = None

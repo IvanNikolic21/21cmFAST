@@ -717,12 +717,11 @@ class FlagOptions(StructWithDefaults):
     def PHOTON_CONS(self):
         """Automatically setting PHOTON_CONS to False if USE_MINI_HALOS."""
         if not self.USE_MINI_HALOS or not self._PHOTON_CONS:
-            return self._PHOTON_CONS
-        logger.warning(
-            "USE_MINI_HALOS is not compatible with PHOTON_CONS! "
-            "Automatically setting PHOTON_CONS to False."
-        )
-        return False
+            logger.warning(
+                "USE_MINI_HALOS is not compatible with PHOTON_CONS! "
+                "Automatically setting PHOTON_CONS to False."
+            )
+        return self._PHOTON_CONS
 
 
 class AstroParams(StructWithDefaults):
@@ -831,7 +830,7 @@ class AstroParams(StructWithDefaults):
         "F_ESC10": -1.0,
         "F_ESC7_MINI": -2.0,
         "ALPHA_ESC": -0.5,
-        "M_TURN": 8.7,
+        "M_TURN": 8.0,
         "R_BUBBLE_MAX": None,
         "ION_Tvir_MIN": 4.69897,
         "L_X": 40.0,
