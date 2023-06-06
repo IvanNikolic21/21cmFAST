@@ -2439,6 +2439,7 @@ def run_coeval(
 
         if flag_options.PHOTON_CONS:
             photon_nonconservation_data = _get_photon_nonconservation_data()
+            print("This is the nonconservation_data",photon_nonconservation_data)
             if photon_nonconservation_data:
                 lib.FreePhotonConsMemory()
         else:
