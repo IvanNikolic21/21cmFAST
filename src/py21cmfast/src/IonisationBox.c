@@ -61,7 +61,7 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
 
     double global_xH, ST_over_PS, f_coll, R, stored_R, f_coll_min;
     double ST_over_PS_MINI, f_coll_MINI, f_coll_min_MINI;
-
+    double prev_global_xH;
     double t_ast,  Gamma_R_prefactor, rec, dNrec, sigmaMmax;
     double Gamma_R_prefactor_MINI;
     float fabs_dtdz, ZSTEP, z_eff;
@@ -158,20 +158,40 @@ LOG_SUPER_DEBUG("defined parameters");
             box->z_re_box[ct] = -1.0;
         }
     }
-
+    prev_global_xH = 0;
+#pragma omp parallel shared(previous_ionize_box) private(ct) num_threads(user_params->N_THREADS)
+    if (prev_redshift > 1){
+#pragma omp for reduction(+:prev_global_xH)
+        for (ct=0; ct<HII_TOT_NUM_PIXELS; ct++){
+                    prev_global_xH += previous_ionize_box->xH_box[ct];
+                }
+    }
+    else{
+	prev_global_xH = HII_TOT_NUM_PIXELS;
+    }
+    prev_global_xH /= (double)HII_TOT_NUM_PIXELS;
+    LOG_DEBUG("Previous ionization fraction: %f", &prev_global_xH)
     LOG_SUPER_DEBUG("z_re_box init: ");
     debugSummarizeBox(box->z_re_box, user_params->HII_DIM, user_params->NON_CUBIC_FACTOR, "  ");
 
     fabs_dtdz = fabs(dtdz(redshift))/1e15; //reduce to have good precision
     t_ast = astro_params->t_STAR * t_hubble(redshift);
     growth_factor_dz = dicke(redshift-dz);
-
+    float stored_prev_redshift;
+    float safe_prev_redshift = prev_redshift;
+    float absolute_delta_z_prev;
     // Modify the current sampled redshift to a redshift which matches the expected filling factor given our astrophysical parameterisation.
     // This is the photon non-conservation correction
     if(flag_options->PHOTON_CONS) {
-        adjust_redshifts_for_photoncons(astro_params,flag_options,&redshift,&stored_redshift,&absolute_delta_z);
+        adjust_redshifts_for_photoncons(astro_params,flag_options,&redshift,&stored_redshift,&absolute_delta_z,&prev_global_xH);
+        if(absolute_delta_z>0.0){
+	    adjust_redshifts_for_photoncons(astro_params, flag_options, &safe_prev_redshift, &stored_prev_redshift, &absolute_delta_z_prev, &prev_global_xH);
+	    prev_redshift = safe_prev_redshift;
+	}
 LOG_DEBUG("PhotonCons data:");
 LOG_DEBUG("original redshift=%f, updated redshift=%f delta-z = %f", stored_redshift, redshift, absolute_delta_z);
+printf("Previous redshift=%f, updated redshift=%f delta-z = %f", stored_prev_redshift, prev_redshift, absolute_delta_z_prev);
+
         if(isfinite(redshift)==0 || isfinite(absolute_delta_z)==0) {
             LOG_ERROR("Updated photon non-conservation redshift is either infinite or NaN!");
             LOG_ERROR("This can sometimes occur when reionisation stalls (i.e. extremely low"\
@@ -180,7 +200,7 @@ LOG_DEBUG("original redshift=%f, updated redshift=%f delta-z = %f", stored_redsh
             Throw(PhotonConsError);
         }
     }
-
+    prev_global_xH = 0; // Reset just in case
     Splined_Fcoll = 0.;
     Splined_Fcoll_MINI = 0.;
 

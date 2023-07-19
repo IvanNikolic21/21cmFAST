@@ -2439,7 +2439,7 @@ def run_coeval(
 
         if flag_options.PHOTON_CONS:
             photon_nonconservation_data = _get_photon_nonconservation_data()
-            print("This is the nonconservation_data",photon_nonconservation_data)
+            print("This is the nonconservation_data",photon_nonconservation_data, flush=True)
             if photon_nonconservation_data:
                 lib.FreePhotonConsMemory()
         else:
@@ -2945,6 +2945,7 @@ def run_lightcone(
 
         if flag_options.PHOTON_CONS:
             photon_nonconservation_data = _get_photon_nonconservation_data()
+            print("This is the photon nonconservation data:", photon_nonconservation_data, flush=True)
             if photon_nonconservation_data:
                 lib.FreePhotonConsMemory()
         else:
