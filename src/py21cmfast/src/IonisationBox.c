@@ -451,7 +451,8 @@ LOG_SUPER_DEBUG("Calculating and outputting Mcrit boxes for atomic and molecular
                     for (y=0; y<user_params->HII_DIM; y++){
                         for (z=0; z<HII_D_PARA; z++){
 
-                            Mcrit_RE = reionization_feedback(redshift, previous_ionize_box->Gamma12_box[HII_R_INDEX(x, y, z)], previous_ionize_box->z_re_box[HII_R_INDEX(x, y, z)]);
+                            Mcrit_RE = reionization_feedback(stored_redshift, previous_ionize_box->Gamma12_box[HII_R_INDEX(x, y, z)], previous_ionize_box->z_re_box[HII_R_INDEX(x, y, z)]);
+			    
                             if (flag_options->FIX_VCB_AVG){ //with this flag we ignore reading vcb box
                               curr_vcb = global_params.VAVG;
                             }
@@ -1365,7 +1366,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
                                 // keep track of the first time this cell is ionized (earliest time)
                                 if (previous_ionize_box->z_re_box[HII_R_INDEX(x,y,z)] < 0){
-                                    box->z_re_box[HII_R_INDEX(x,y,z)] = redshift;
+                                    box->z_re_box[HII_R_INDEX(x,y,z)] = stored_redshift;
                                 } else{
                                     box->z_re_box[HII_R_INDEX(x,y,z)] = previous_ionize_box->z_re_box[HII_R_INDEX(x,y,z)];
                                 }

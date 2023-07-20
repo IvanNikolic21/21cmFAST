@@ -111,7 +111,7 @@ extern struct GlobalParams global_params = {
 
     .RecombPhotonCons = 0,
     .PhotonConsStart = 0.995,
-    .PhotonConsEnd = 0.3,
+    .PhotonConsEnd = 0.4,
     .PhotonConsAsymptoteTo = 0.01,
     .PhotonConsEndCalibz = 3.5,
 
