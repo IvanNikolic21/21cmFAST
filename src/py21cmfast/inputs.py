@@ -694,8 +694,9 @@ class FlagOptions(StructWithDefaults):
     @property
     def INHOMO_RECO(self):
         """Automatically setting INHOMO_RECO to True if USE_MINI_HALOS."""
-        if not self.USE_MINI_HALOS or self._INHOMO_RECO:
-            return self._INHOMO_RECO
+        #if not self.USE_MINI_HALOS or self._INHOMO_RECO:
+        #    return self._INHOMO_RECO
+        return self._INHOMO_RECO
         logger.warning(
             "You have set USE_MINI_HALOS to True but INHOMO_RECO to False! "
             "Automatically setting INHOMO_RECO to True."

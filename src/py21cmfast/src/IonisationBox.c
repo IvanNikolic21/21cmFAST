@@ -451,8 +451,8 @@ LOG_SUPER_DEBUG("Calculating and outputting Mcrit boxes for atomic and molecular
                     for (y=0; y<user_params->HII_DIM; y++){
                         for (z=0; z<HII_D_PARA; z++){
 
-                            Mcrit_RE = reionization_feedback(stored_redshift, previous_ionize_box->Gamma12_box[HII_R_INDEX(x, y, z)], previous_ionize_box->z_re_box[HII_R_INDEX(x, y, z)]);
-			    
+                            //Mcrit_RE = reionization_feedback(stored_redshift, previous_ionize_box->Gamma12_box[HII_R_INDEX(x, y, z)], previous_ionize_box->z_re_box[HII_R_INDEX(x, y, z)]);
+			    Mcrit_RE = 0.0; //Ivan't addition
                             if (flag_options->FIX_VCB_AVG){ //with this flag we ignore reading vcb box
                               curr_vcb = global_params.VAVG;
                             }
@@ -639,8 +639,10 @@ LOG_SUPER_DEBUG("excursion set normalisation, mean_f_coll: %e", box->mean_f_coll
         }
 LOG_SUPER_DEBUG("excursion set normalisation, mean_f_coll_MINI: %e", box->mean_f_coll_MINI);
     }
-
-
+    printf("Printing mean collapse fraction for AC halos%e \n", box->mean_f_coll);
+    if (flag_options->USE_MINI_HALOS){
+	    printf("Printing mean collapse fraction for MC halos%e \n", box->mean_f_coll_MINI);
+    }
     if (box->mean_f_coll * ION_EFF_FACTOR + box->mean_f_coll_MINI * ION_EFF_FACTOR_MINI< global_params.HII_ROUND_ERR){ // way too small to ionize anything...
     //        printf( "The mean collapse fraction is %e, which is much smaller than the effective critical collapse fraction of %e\n I will just declare everything to be neutral\n", mean_f_coll, f_coll_crit);
 
@@ -1621,9 +1623,12 @@ LOG_SUPER_DEBUG("freed fftw boxes");
 
     if (prev_redshift < 1){
         free(previous_ionize_box->z_re_box);
+	if (flag_options-> INHOMO_RECO){
+		free(previous_ionize_box->dNrec_box);
+        }
         if (flag_options->USE_MASS_DEPENDENT_ZETA && flag_options->USE_MINI_HALOS){
             free(previous_ionize_box->Gamma12_box);
-            free(previous_ionize_box->dNrec_box);
+         //   free(previous_ionize_box->dNrec_box);
             free(previous_ionize_box->Fcoll);
             free(previous_ionize_box->Fcoll_MINI);
         }
