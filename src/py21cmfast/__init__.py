@@ -51,6 +51,7 @@ from .wrapper import (
     perturb_field,
     perturb_halo_list,
     run_coeval,
+    run_kSZ,
     run_lightcone,
     spin_temperature,
 )

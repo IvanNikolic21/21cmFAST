@@ -812,7 +812,7 @@ void inspectPerturbedField(struct PerturbedField *x, int print_pid, int print_co
         }
         printf("\n");
 
-        printf("%s\t\tvelocity: ", pid);
+        printf("%s\t\tvelocity (z): ", pid);
         for(i=0;i<10;i++){
             printf("%f, ", x->velocity_x[i]);
         }
@@ -916,9 +916,9 @@ void inspectIonizedBox(struct IonizedBox *x, int print_pid, int print_corners, i
         }
         printf("\n");
 
-        printf("%s\t\tdNrec_box : ");
+        printf("%s\t\tNrec_box : ");
         for(i=0;i<10;i++){
-            printf("%f, ", x->dNrec_box[i]);
+            printf("%f, ", x->Nrec_box[i]);
         }
         printf("\n");
     }

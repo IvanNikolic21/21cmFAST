@@ -3901,8 +3901,12 @@ void determine_deltaz_for_photoncons() {
             // Try and find a point which can be used to smooth out any dip in delta z as a function of neutral fraction.
             // It can be flat, then drop, then increase. This smooths over this drop (removes a kink in the resultant reionisation history).
             // Choice of 75 is somewhat arbitrary
-            while(val2 < val1 && (counter < 75 || (1+(i+1)+counter) > (N_NFsamples+N_extrapolated))) {
+			while(val2 < val1 && counter < 75 && ((1+(i+1)+counter) < (N_NFsamples+N_extrapolated))) {
                 counter += 1;
+                if ((i+counter) > (N_NFsamples+N_extrapolated)){
+                    LOG_ERROR("Stepping over! i=%d; counter=%d; N_NFsamples=%d; N_extrapolated=%d.", i, counter,N_NFsamples, N_extrapolated);
+                    Throw(PhotonConsError);
+                }
                 val2 = deltaz[i+1+counter];
 
                 deltaz_smoothed[i+1] = ( val1 + deltaz[1+(i+1)+counter] )/2.;
@@ -4006,9 +4010,6 @@ float adjust_redshifts_for_photoncons(
             adjusted_redshift = *redshift;
         }
         else {
-            // Initialise the photon non-conservation correction curve
-            // It is possible that for certain parameter choices that we can get here without initialisation happening.
-            // Thus check and initialise if not already done so
             if(!photon_cons_allocated) {
                 determine_deltaz_for_photoncons();
                 photon_cons_allocated = true;

@@ -550,6 +550,7 @@ class IonizedBox(_AllParamsBox):
             "xH_box": {"init": np.ones, "shape": shape},
             "Gamma12_box": shape,
             "MFP_box": shape,
+            "Nion_box": shape,
             "z_re_box": shape,
             "dNrec_box": shape,
             "temp_kinetic_all_gas": shape,
@@ -1450,3 +1451,17 @@ class AngularLightcone(LightCone):
                 self.save(fname)
 
         return tb_with_rsds
+
+      
+class KSZOutput:
+    """Output class for kSZ effect."""
+
+    def __init__(
+        self, kSZ_box, taue, l_s=None, kSZ_power=None, cosmo_params=None, err=None
+    ):
+        self.kSZ_box = kSZ_box
+        self.taue = taue
+        self.l_s = l_s
+        self.kSZ_power = kSZ_power
+        self.cosmo_params = cosmo_params
+        self.err = err

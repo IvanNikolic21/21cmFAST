@@ -83,6 +83,7 @@ struct FlagOptions{
     bool M_MIN_in_Mass;
     bool PHOTON_CONS;
     bool FIX_VCB_AVG;
+    bool EVOLVING_R_BUBBLE_MAX;
 };
 
 
@@ -128,13 +129,16 @@ struct TsBox{
 struct IonizedBox{
     double mean_f_coll;
     double mean_f_coll_MINI;
+    double mean_f_coll_PC;
+    double mean_f_coll_MINI_PC;
     double log10_Mturnover_ave;
     double log10_Mturnover_MINI_ave;
     float *xH_box;
     float *Gamma12_box;
     float *MFP_box;
     float *z_re_box;
-    float *dNrec_box;
+    float *Nrec_box;
+	float *Nion_box;
     float *temp_kinetic_all_gas;
     float *Fcoll;
     float *Fcoll_MINI;
@@ -184,6 +188,8 @@ int ObtainPhotonConsData(double *z_at_Q_data, double *Q_data, int *Ndata_analyti
 
 int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params,
                struct FlagOptions *flag_options, int component, int NUM_OF_REDSHIFT_FOR_LF, float *z_LF, float *M_TURNs, double *M_uv_z, double *M_h_z, double *log10phi);
+
+double tau_e(float zstart, float zend, float *zarry, float *xHarry, int len);
 
 float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_params, int Npoints, float *redshifts, float *global_xHI);
 

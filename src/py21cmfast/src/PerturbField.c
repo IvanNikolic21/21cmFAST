@@ -166,6 +166,7 @@ int ComputePerturbField(
     float mass_factor, dDdt, f_pixel_factor, velocity_displacement_factor, velocity_displacement_factor_2LPT;
     unsigned long long ct, HII_i, HII_j, HII_k;
     int i,j,k,xi, yi, zi, dimension, switch_mid;
+    int i_direc;
     double ave_delta, new_ave_delta;
 
     // Variables to perform cloud in cell re-distribution of mass for the perturbed field
@@ -682,7 +683,7 @@ int ComputePerturbField(
     // ****  Convert to velocities ***** //
     LOG_DEBUG("Generate velocity fields");
 
-    float k_x, k_y, k_z, k_sq, dDdt_over_D;
+    float k_x, k_y, k_z, k_sq, dDdt_over_D, k_direc;
     int n_x, n_y, n_z;
 
     dDdt_over_D = dDdt/growth_factor;
@@ -731,6 +732,7 @@ int ComputePerturbField(
         perturbed_field->velocity_z
     );
 
+
     fftwf_cleanup_threads();
     fftwf_cleanup();
     fftwf_forget_wisdom();
@@ -743,8 +745,7 @@ int ComputePerturbField(
         fftwf_free(HIRES_density_perturb_saved);
     }
     fftwf_cleanup();
-
-    } // End of Try{}
+    }// End of Try{}
     Catch(status){
         return(status);
     }

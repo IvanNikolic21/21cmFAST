@@ -685,6 +685,10 @@ class FlagOptions(StructWithDefaults):
         Determines whether to use a fixed vcb=VAVG (*regardless* of USE_RELATIVE_VELOCITIES). It includes the average effect of velocities but not its fluctuations. See Muñoz+21 (2110.13919).
     USE_VELS_AUX: bool, optional
         Auxiliary variable (not input) to check if minihaloes are being used without relative velocities and complain
+    EVOLVING_R_BUBBLE_MAX: bool, optional
+        Wmhether to use the redshift-dependent R_BUBBLE_MAX (37pMpc*0.7/hlittle*((1+z)/5)**-4.7
+        from Worseck+14 adjusted index for Becker+21; cap at z>6, i.e. ~40cMpc).
+        This will overide R_BUBBLE_MAX set in AstroParams.
     """
 
     _ffi = ffi
@@ -702,6 +706,8 @@ class FlagOptions(StructWithDefaults):
         "M_MIN_in_Mass": False,
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
+        "USE_VELS_AUX": None,
+        "EVOLVING_R_BUBBLE_MAX": False, 
     }
 
     @property
@@ -830,7 +836,8 @@ class AstroParams(StructWithDefaults):
         See Sec 2.1 of Park+2018.
     R_BUBBLE_MAX : float, optional
         Mean free path in Mpc of ionizing photons within ionizing regions (Sec. 2.1.2 of
-        Greig+2015). Default is 50 if `INHOMO_RECO` is True, or 15.0 if not.
+        Greig+2015). Default is 50 if `INHOMO_RECO` is True, or 15.0 if not. But if
+        EVOLVING_R_BUBBLE_MAX, then R_BUBBLE_MAX follows a fitting function that evolves with z.
     ION_Tvir_MIN : float, optional
         Minimum virial temperature of star-forming haloes (Sec 2.1.3 of Greig+2015).
         Given in log10 units.

@@ -90,10 +90,14 @@ from __future__ import annotations
 import logging
 import numpy as np
 import os
+import random
 import warnings
-from astropy import units as un
+from astropy import as un
 from copy import deepcopy
 from pathlib import Path
+from astropy import constants
+from astropy.cosmology import Planck18, z_at_value
+from powerbox import get_power
 from scipy.interpolate import interp1d
 from typing import Any, Callable, Sequence
 
@@ -118,6 +122,7 @@ from .outputs import (
     HaloField,
     InitialConditions,
     IonizedBox,
+    KSZOutput,
     LightCone,
     PerturbedField,
     PerturbHaloField,
@@ -1617,6 +1622,7 @@ def ionize_box(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
+                    write=write,  # quick hack for running MultiNest
                     cleanup=False,  # We *know* we're going to need the memory again.
                 )
 
@@ -1630,6 +1636,7 @@ def ionize_box(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
             )
 
         if previous_perturbed_field is None or not previous_perturbed_field.is_computed:
@@ -1645,6 +1652,7 @@ def ionize_box(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
+                    write=write,  # quick hack for running MultiNest
                 )
 
         # Dynamically produce the halo field.
@@ -1683,6 +1691,7 @@ def ionize_box(
                 hooks=hooks,
                 regenerate=regenerate,
                 cleanup=cleanup,
+                write=write,  # quick hack for running MultiNest
             )
 
         # Run the C Code
@@ -1956,6 +1965,7 @@ def spin_temperature(
                     hooks=hooks,
                     direc=direc,
                     cleanup=False,  # we know we'll need the memory again
+                    write=write,  # quick hack for running MultiNest
                 )
 
         # Dynamically produce the perturbed field.
@@ -1966,6 +1976,7 @@ def spin_temperature(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
             )
 
         # Run the C Code
@@ -2491,6 +2502,8 @@ def run_lightcone(
     always_purge: bool = False,
     lightcone_filename: str | Path = None,
     return_at_z: float = 0.0,
+    rotation_cubes=False,
+    los_axis=2,
     **global_kwargs,
 ):
     r"""
@@ -2572,6 +2585,13 @@ def run_lightcone(
         and the partial lightcone object will be returned. Lightcone evaluation can
         continue if the returned lightcone is saved to file, and this file is passed
         as `lightcone_filename`.
+    rotation_cubes : bool, optional
+        Whether to rotate the lightcone during the interpolation. If True it will use a different
+        line of sight after every HII_DIM. Lightcone will have breaks, but will not have structure
+        repetition.
+    los_axis : int, optional
+        Line of sight of the lightcone interpolation. 0 is for x direction, 1 is for y direction
+        2 is for z direction. Default is 2.
     \*\*global_kwargs :
         Any attributes for :class:`~py21cmfast.inputs.GlobalParams`. This will
         *temporarily* set global attributes for the duration of the function. Note that
@@ -2842,6 +2862,7 @@ def run_lightcone(
         spin_temp_files = []
         ionize_files = []
         brightness_files = []
+
         log10_mturnovers = np.zeros(len(scrollz))
         log10_mturnovers_mini = np.zeros(len(scrollz))
         coeval = None
@@ -2949,6 +2970,27 @@ def run_lightcone(
                         lightcone_filename, redshift=z, index=lc_index
                     )
 
+#                     n = _interpolate_in_redshift(
+#                         los_axis,
+#                         iz,
+#                         box_index,
+#                         lc_index,
+#                         n_lightcone,
+#                         scroll_distances,
+#                         lc_distances,
+#                         data1,
+#                         data2,
+#                         quantity,
+#                         lc[quantity],
+#                         fnc,
+#                     )
+#                 lc_index += n
+#                 box_index += n
+#                 rot_index += n
+#                 if rotation_cubes and rot_index >= user_params.HII_DIM:
+#                     los_axis = (los_axis + 1) % 3
+#                     rot_index -= user_params.HII_DIM
+
             # Save current ones as old ones.
             if flag_options.USE_TS_FLUCT:
                 st = st2
@@ -3031,6 +3073,74 @@ def _get_coeval_callbacks(
 
     return compute_coeval_callback
 
+
+
+# def _interpolate_in_redshift(
+#     los_axis,
+#     z_index,
+#     box_index,
+#     lc_index,
+#     n_lightcone,
+#     scroll_distances,
+#     lc_distances,
+#     output_obj,
+#     output_obj2,
+#     quantity,
+#     lc,
+#     kind="mean",
+# ):
+#     # If rotating lighcones, change velocity_component.
+#     quantity_td = quantity
+#     if quantity == "velocity" and los_axis == 0:
+#         quantity_td = "velocity_x"
+#     if quantity == "velocity" and los_axis == 1:
+#         quantity_td = "velocity_y"
+
+#     try:
+#         array = getattr(output_obj, quantity_td)
+#         array2 = getattr(output_obj2, quantity_td)
+#     except AttributeError:
+#         raise AttributeError(
+#             f"{quantity} is not a valid field of {output_obj.__class__.__name__}"
+#         )
+
+#     assert array.__class__ == array2.__class__
+
+#     # Do linear interpolation only.
+#     prev_d = scroll_distances[z_index - 1]
+#     this_d = scroll_distances[z_index]
+
+#     # Get the cells that need to be filled on this iteration.
+#     these_distances = lc_distances[
+#         np.logical_and(lc_distances < prev_d, lc_distances >= this_d)
+#     ]
+
+#     n = len(these_distances)
+#     ind = np.arange(-(box_index + n), -box_index)
+
+#     sub_array = array.take(ind + n_lightcone, axis=los_axis, mode="wrap")
+#     sub_array2 = array2.take(ind + n_lightcone, axis=los_axis, mode="wrap")
+
+#     # Adjust matrices.
+#     if los_axis == 0:
+#         sub_array = np.moveaxis(sub_array, 0, -1)
+#         sub_array2 = np.moveaxis(sub_array2, 0, -1)
+#     if los_axis == 1:
+#         sub_array = np.moveaxis(sub_array, -1, 0)
+#         sub_array2 = np.moveaxis(sub_array2, -1, 0)
+
+#     out = (
+#         np.abs(this_d - these_distances) * sub_array
+#         + np.abs(prev_d - these_distances) * sub_array2
+#     ) / (np.abs(prev_d - this_d))
+#     if kind == "mean_max":
+#         flag = sub_array * sub_array2 < 0
+#         out[flag] = np.maximum(sub_array, sub_array2)[flag]
+#     elif kind != "mean":
+#         raise ValueError("kind must be 'mean' or 'mean_max'")
+
+#     lc[:, :, -(lc_index + n) : n_lightcone - lc_index] = out
+#     return n
 
 def calibrate_photon_cons(
     astro_params,
@@ -3128,6 +3238,7 @@ def calibrate_photon_cons(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
             )
 
             ib2 = ionize_box(
@@ -3142,6 +3253,7 @@ def calibrate_photon_cons(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
+                write=write,  # quick hack for running MultiNest
             )
 
             mean_nf = np.mean(ib2.xH_box)
@@ -3172,3 +3284,240 @@ def calibrate_photon_cons(
             nf_estimate=neutral_fraction_photon_cons,
             NSpline=len(z_for_photon_cons),
         )
+
+
+def run_kSZ(
+    lc=None,
+    z_start=5,
+    cosmo_params=None,
+    user_params=None,
+    astro_params=None,
+    flag_options=None,
+    PARALLEL_APPROX=False,
+    rotation=True,
+    random_seed=1,
+):
+    r"""
+    run_kSZ calculates the patchy kinetic Sunyaev-Zel'dovich signal using a 21cmFAST lighcone with density, velocity, velocity_y, velocity_x and xH_box lighcone quantities.
+
+    The function takes the cosmological quantities used in the lightcone when applicable.
+
+    Parameters
+    ----------
+    lc: :class:`~LightCone`, optional
+        lightcone object over which kSZ effect is calculated. If not provided, defalt parameters are used.
+    z_start : float, optional
+        Starting redshift for kSZ calculation, default is 5.
+    user_params : :class:`~UserParams`, optional
+        Defines the overall options and parameters of the run.
+    cosmo_params : :class:`~CosmoParams`, optional
+        Defines the cosmological parameters used to compute initial conditions.
+    astro_params : :class:`~AstroParams`, optional
+        Defines the astrophysical parameters of the run.
+    flag_options : :class:`~FlagOptions`, optional
+        Options concerning how the reionization process is run, eg. if spin temperature
+        fluctuations are required.
+    PARALLEL_APPROX : bool, optional
+        Flag for parrallel approximation, if True, parallel approximation is taken which is much quicker, but more approximate. Default: False.
+    rotation : bool, optional
+        Flag for rotation of boxes, if True boxes are shifted for every HII_DIM, which is the size of the simulation. Default: True.
+
+
+    Returns
+    -------
+    KSZOutput :
+        KSZ_box: map of the kSZ effect, in Kelvins.
+        taue_boxp: map of the optical depth.
+        l_s :  multipole moments of the power spectrum.
+        kSZ_power: Power spectrum of the kSZ effect.
+        err: Poisson error for the power spectrum.
+    """
+    if lc:
+        user_params = lc.user_params
+        cosmo_params = lc.cosmo_params
+        astro_params = lc.astro_params
+        flag_options = lc.flag_options
+        if user_params.OUTPUT_ALL_VEL is False:
+            logger.warning(
+                "Using all velocity components is advised with OUTPUT_ALL_VEL=True."
+            )
+    else:
+        if user_params is None:
+            user_params = UserParams(**UserParams._defaults_)
+        if cosmo_params is None:
+            cosmo_params = CosmoParams(**CosmoParams._defaults_)
+        if astro_params is None:
+            astro_params = AstroParams(**AstroParams._defaults_)
+        if flag_options is None:
+            flag_options = FlagOptions(**FlagOptions._defaults_)
+        lc_quantities = (
+            "brightness_temp",
+            "xH_box",
+            "density",
+            "velocity",
+            "velocity_y",
+            "velocity_x",
+        )
+        lc = run_lightcone(
+            redshift=z_start,
+            user_params=user_params,
+            cosmo_params=cosmo_params,
+            astro_params=astro_params,
+            flag_options=flag_options,
+            lightcone_quantities=lc_quantities,
+            random_seed=random_seed,
+        )
+        logger.warning(
+            "run_kSZ requires a lightcone object, which is not given. Running with default parameters."
+        )
+    random.seed(random_seed)
+
+    kSZ_consts = _KszConstants(
+        lc.user_params.HII_DIM,
+        lc.user_params.BOX_LEN,
+        lc.cosmo_params.hlittle,
+        lc.cosmo_params.OMb,
+        len(lc.lightcone_redshifts),
+        z_start,
+        lc.lightcone_distances[0],
+        0.245,  # Helium fraction
+    )
+
+    kSZ_consts.mean_taue_curr_z = compute_tau(
+        redshifts=[z_start],
+        global_xHI=[1],
+        user_params=user_params,
+        cosmo_params=cosmo_params,
+    )
+    Tcmb, mean_taue_fin = _Proj_array(
+        lc.lightcone_redshifts,
+        lc.density,
+        lc.velocity,
+        lc.xH_box,
+        kSZ_consts,
+        PARALLEL_APPROX=PARALLEL_APPROX,
+        rotation=rotation,
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        P_k, l_s, err = get_power(
+            Tcmb
+            * kSZ_consts.CMperMPC
+            / constants.c.cgs.value
+            * 1e6
+            * Planck18.Tcmb0.value
+            / np.sqrt(2 * np.pi),
+            lc.user_params.BOX_LEN,
+            bins=30,
+            log_bins=True,
+            get_variance=True,
+        )  # in microK^2
+    P_k = P_k * l_s ** 2
+    err = np.sqrt(err) * l_s ** 2
+    l_s *= lc.lightcone_distances[0]
+    return KSZOutput(
+        Tcmb * kSZ_consts.CMperMPC / constants.c.cgs.value * Planck18.Tcmb0.value,
+        mean_taue_fin,
+        l_s=l_s[np.logical_not(np.isnan(l_s))],
+        kSZ_power=P_k[np.logical_not(np.isnan(l_s))],
+        err=err[np.logical_not(np.isnan(l_s))],
+    )
+
+
+def _Proj_array(
+    redshifts,
+    density,
+    velocity,
+    xH,
+    kSZ_consts,
+    PARALLEL_APPROX=False,
+    rotation=False,
+):
+    """Do the actual projection."""
+    dtau_3d = (
+        kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4 - xH)
+    )  # this is used for tau_e contribution
+    if not (PARALLEL_APPROX or rotation):
+        # pay attention to the z order here in cumsum
+        taue_arry = (
+            np.cumsum(dtau_3d * (1 + redshifts) ** 2, axis=2)
+            + kSZ_consts.mean_taue_curr_z
+        )
+        Tcmb = dtau_3d * velocity * (1 + redshifts) * np.exp(-taue_arry)
+        taue_arry = taue_arry[-1]
+    else:
+        inc = 1
+        inc_displacement = kSZ_consts.dR / kSZ_consts.DA_zstart
+        Tcmb_3d = (
+            kSZ_consts.A * velocity * (1.08 - xH) * (1.0 + density)
+        )  # this is used for tcmb contribution
+        taue_arry = np.full(
+            (kSZ_consts.HII_DIM, kSZ_consts.HII_DIM), kSZ_consts.mean_taue_curr_z
+        )
+        Tcmb = np.zeros((kSZ_consts.HII_DIM, kSZ_consts.HII_DIM))
+        for k in range(kSZ_consts.red_dist):
+            dtau_new = (
+                dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
+            )  # tcmb and tau_e contribution with appropriate redshift dependecies
+            Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
+            if not PARALLEL_APPROX:
+                a = np.round(
+                    np.arange(-kSZ_consts.HII_DIM / 2, kSZ_consts.HII_DIM / 2) * inc
+                    + kSZ_consts.HII_DIM * 3 / 2
+                ).astype(
+                    int
+                )  # This part assumes that the center of the field is the center of the observation
+                inc += inc_displacement  # increment for ray tracing
+                dtau_new = np.take(dtau_new, a, axis=0, mode="wrap")
+                dtau_new = np.take(dtau_new, a, axis=1, mode="wrap")
+                Tcmb_new = np.take(Tcmb_new, a, axis=0, mode="wrap")
+                Tcmb_new = np.take(Tcmb_new, a, axis=1, mode="wrap")
+            if rotation:
+                if k % kSZ_consts.HII_DIM == 0:
+                    tx = int(kSZ_consts.HII_DIM * random.random())
+                    ty = int(kSZ_consts.HII_DIM * random.random())
+                dtau_new = np.roll(
+                    dtau_new, -tx, 0
+                )  # shifting of tcmb so there is no object repetition
+                dtau_new = np.roll(dtau_new, -ty, 1)
+                Tcmb_new = np.roll(
+                    Tcmb_new, -tx, 0
+                )  # shifting of tcmb so there is no object repetition
+                Tcmb_new = np.roll(Tcmb_new, -ty, 1)
+            taue_arry += dtau_new  # tau_e updating
+            Tcmb += Tcmb_new * np.exp(
+                -taue_arry
+            )  # tcmb contribution with tau_e taken in account
+    mean_taue_fin = np.mean(taue_arry)
+    Tcmb = Tcmb - np.mean(Tcmb)
+    return Tcmb, mean_taue_fin
+
+
+class _KszConstants:
+    """Constants used for kSZ calculation."""
+
+    def __init__(
+        self, HII_DIM, BOX_LEN, hlittle, OMb, red_dist, redshift_start, DA_zstart, Y_He
+    ):
+        RHOb_cgs = (
+            3.0
+            * (hlittle * 3.2407e-18) ** 2
+            / (8.0 * np.pi * constants.G.cgs.value)
+            * OMb
+            / constants.m_p.cgs.value
+        )  # pcm^-3 at z=0
+        self.He_No = RHOb_cgs * Y_He / 4.0  # current helium number density estimate
+        self.N_0 = RHOb_cgs * (
+            1 - 0.75 * Y_He
+        )  # present-day baryon num density, H + He
+        self.N_b0 = self.He_No + self.N_0
+        self.dR = BOX_LEN / HII_DIM
+        self.CMperMPC = constants.kpc.cgs.value * 1e3
+        self.A = self.N_b0 * constants.sigma_T.cgs.value * self.dR * self.CMperMPC
+        self.HII_DIM = HII_DIM
+        self.BOX_LEN = BOX_LEN
+        self.red_dist = red_dist
+        self.redshift_start = redshift_start
+        self.DA_zstart = DA_zstart
+        self.Y_He = Y_He
