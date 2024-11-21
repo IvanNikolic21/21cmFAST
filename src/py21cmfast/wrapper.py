@@ -92,7 +92,7 @@ import numpy as np
 import os
 import random
 import warnings
-from astropy import as un
+from astropy import units as un
 from copy import deepcopy
 from pathlib import Path
 from astropy import constants
