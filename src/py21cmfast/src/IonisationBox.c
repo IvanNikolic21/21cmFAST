@@ -713,7 +713,7 @@ LOG_SUPER_DEBUG("excursion set normalisation, mean_f_coll_MINI: %e", box->mean_f
                     for (j = 0; j < user_params->HII_DIM; j++) {
                         for (k = 0; k < HII_D_PARA; k++) {
                             *((float *) N_rec_unfiltered +
-                              HII_R_FFT_INDEX(i, j, k)) = previous_ionize_box->Nrec_box[HII_R_INDEX(i, j, k)];
+                              HII_R_FFT_INDEX(i, j, k)) = previous_ionize_box->dNrec_box[HII_R_INDEX(i, j, k)];
                         }
                     }
                 }
@@ -1549,8 +1549,8 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                 something_finite_or_infinite = 1;
                             }
 
-                            box->Nrec_box[HII_R_INDEX(x, y, z)] =
-                                    previous_ionize_box->Nrec_box[HII_R_INDEX(x, y, z)] + dNrec;
+                            box->dNrec_box[HII_R_INDEX(x, y, z)] =
+                                    previous_ionize_box->dNrec_box[HII_R_INDEX(x, y, z)] + dNrec;
                         }
                     }
                 }
@@ -1640,7 +1640,7 @@ LOG_SUPER_DEBUG("freed fftw boxes");
         free(previous_ionize_box->z_re_box);
         if (flag_options->USE_MASS_DEPENDENT_ZETA && flag_options->USE_MINI_HALOS){
             free(previous_ionize_box->Gamma12_box);
-            free(previous_ionize_box->Nrec_box);
+            free(previous_ionize_box->dNrec_box);
             free(previous_ionize_box->Fcoll);
             free(previous_ionize_box->Fcoll_MINI);
         }
