@@ -3468,7 +3468,7 @@ def _Proj_array(
                 ).astype(
                     int
                 )  # This part assumes that the center of the field is the center of the observation
-                inc += inc_displacement  # increment for ray tracing
+                inc += inc_displacement.value  # increment for ray tracing
                 dtau_new = np.take(dtau_new, a, axis=0, mode="wrap")
                 dtau_new = np.take(dtau_new, a, axis=1, mode="wrap")
                 Tcmb_new = np.take(Tcmb_new, a, axis=0, mode="wrap")
