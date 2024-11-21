@@ -356,16 +356,8 @@ LOG_DEBUG("first redshift, do some initialization");
             }
         }
         if (flag_options->INHOMO_RECO)
-            previous_ionize_box->Nrec_box   = (float *) calloc(HII_TOT_NUM_PIXELS, sizeof(float));
+            previous_ionize_box->dNrec_box   = (float *) calloc(HII_TOT_NUM_PIXELS, sizeof(float));
     }
-    if (flag_options->EVOLVING_R_BUBBLE_MAX){
-        if (redshift > 6)
-            R_BUBBLE_MAX = 25.483241248322766 / cosmo_params->hlittle;
-        else
-            R_BUBBLE_MAX = 112 / cosmo_params->hlittle * pow( (1.+redshift) / 5. , -4.4);
-    }
-    else
-        R_BUBBLE_MAX = astro_params->R_BUBBLE_MAX;
     //set the minimum source mass
     if (flag_options->USE_MASS_DEPENDENT_ZETA) {
         if (flag_options->USE_MINI_HALOS){

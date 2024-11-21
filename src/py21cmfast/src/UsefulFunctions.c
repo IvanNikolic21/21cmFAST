@@ -916,9 +916,9 @@ void inspectIonizedBox(struct IonizedBox *x, int print_pid, int print_corners, i
         }
         printf("\n");
 
-        printf("%s\t\tNrec_box : ");
+        printf("%s\t\tdNrec_box : ");
         for(i=0;i<10;i++){
-            printf("%f, ", x->Nrec_box[i]);
+            printf("%f, ", x->dNrec_box[i]);
         }
         printf("\n");
     }
