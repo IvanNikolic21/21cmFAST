@@ -3355,8 +3355,8 @@ def run_kSZ(
             "xH_box",
             "density",
             "velocity",
-            "velocity_y",
-            "velocity_x",
+#            "velocity_y",
+#            "velocity_x",
         )
         lc = run_lightcone(
             redshift=z_start,
