@@ -3415,7 +3415,7 @@ def run_kSZ(
         )  # in microK^2
     P_k = P_k * l_s ** 2
     err = np.sqrt(err) * l_s ** 2
-    l_s *= lc.lightcone_distances[0]
+    l_s *= (lc.lightcone_distances[0]).value
     return KSZOutput(
         Tcmb * kSZ_consts.CMperMPC / constants.c.cgs.value * Planck18.Tcmb0.value,
         mean_taue_fin,
