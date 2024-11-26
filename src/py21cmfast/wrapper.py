@@ -1622,7 +1622,6 @@ def ionize_box(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
-                    write=write,  # quick hack for running MultiNest
                     cleanup=False,  # We *know* we're going to need the memory again.
                 )
 
@@ -1636,7 +1635,6 @@ def ionize_box(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
-                write=write,  # quick hack for running MultiNest
             )
 
         if previous_perturbed_field is None or not previous_perturbed_field.is_computed:
@@ -1652,7 +1650,6 @@ def ionize_box(
                     regenerate=regenerate,
                     hooks=hooks,
                     direc=direc,
-                    write=write,  # quick hack for running MultiNest
                 )
 
         # Dynamically produce the halo field.
@@ -1691,7 +1688,6 @@ def ionize_box(
                 hooks=hooks,
                 regenerate=regenerate,
                 cleanup=cleanup,
-                write=write,  # quick hack for running MultiNest
             )
 
         # Run the C Code
@@ -1965,7 +1961,6 @@ def spin_temperature(
                     hooks=hooks,
                     direc=direc,
                     cleanup=False,  # we know we'll need the memory again
-                    write=write,  # quick hack for running MultiNest
                 )
 
         # Dynamically produce the perturbed field.
@@ -1976,7 +1971,6 @@ def spin_temperature(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
-                write=write,  # quick hack for running MultiNest
             )
 
         # Run the C Code
@@ -2502,8 +2496,8 @@ def run_lightcone(
     always_purge: bool = False,
     lightcone_filename: str | Path = None,
     return_at_z: float = 0.0,
-    rotation_cubes=False,
-    los_axis=2,
+    # rotation_cubes=False,
+    # los_axis=2,
     **global_kwargs,
 ):
     r"""
@@ -3238,7 +3232,6 @@ def calibrate_photon_cons(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
-                write=write,  # quick hack for running MultiNest
             )
 
             ib2 = ionize_box(
@@ -3253,7 +3246,6 @@ def calibrate_photon_cons(
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
-                write=write,  # quick hack for running MultiNest
             )
 
             mean_nf = np.mean(ib2.xH_box)
