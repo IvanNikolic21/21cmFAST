@@ -98,7 +98,7 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
     float prev_min_density, prev_max_density;
 
     float stored_redshift, adjustment_factor;
-    float R_BUBBLE_MAX;
+    // float R_BUBBLE_MAX;
 
     gsl_rng * r[user_params->N_THREADS];
 
@@ -370,8 +370,8 @@ LOG_DEBUG("first redshift, do some initialization");
                 // really painful to get the length...
                 counter = 1;
                 R=fmax(global_params.R_BUBBLE_MIN, (cell_length_factor*user_params->BOX_LEN/(float)user_params->HII_DIM));
-                while ((R - fmin(R_BUBBLE_MAX, L_FACTOR*user_params->BOX_LEN)) <= FRACT_FLOAT_ERR ){
-                    if(R >= fmin(R_BUBBLE_MAX, L_FACTOR*user_params->BOX_LEN)) {
+                while ((R - fmin(astro_params->R_BUBBLE_MAX, L_FACTOR*user_params->BOX_LEN)) <= FRACT_FLOAT_ERR ){
+                    if(R >= fmin(astro_params->R_BUBBLE_MAX, L_FACTOR*user_params->BOX_LEN)) {
                         stored_R = R/(global_params.DELTA_R_HII_FACTOR);
                     }
                     R*= global_params.DELTA_R_HII_FACTOR;
@@ -781,22 +781,22 @@ LOG_SUPER_DEBUG("excursion set normalisation, mean_f_coll_MINI: %e", box->mean_f
 
         R=fmax(global_params.R_BUBBLE_MIN, (cell_length_factor*user_params->BOX_LEN/(float)user_params->HII_DIM));
 
-        while ((R - fmin(R_BUBBLE_MAX, L_FACTOR * user_params->BOX_LEN)) <= FRACT_FLOAT_ERR) {
+        while ((R - fmin(astro_params->R_BUBBLE_MAX, L_FACTOR * user_params->BOX_LEN)) <= FRACT_FLOAT_ERR) {
             R *= global_params.DELTA_R_HII_FACTOR;
-            if (R >= fmin(R_BUBBLE_MAX, L_FACTOR * user_params->BOX_LEN)) {
+            if (R >= fmin(astro_params->R_BUBBLE_MAX, L_FACTOR * user_params->BOX_LEN)) {
                 stored_R = R / (global_params.DELTA_R_HII_FACTOR);
             }
         }
 
         LOG_DEBUG("set max radius: %f", R);
 
-        R=fmin(R_BUBBLE_MAX, L_FACTOR*user_params->BOX_LEN);
+        R=fmin(astro_params->R_BUBBLE_MAX, L_FACTOR*user_params->BOX_LEN);
 
         LAST_FILTER_STEP = 0;
 
         first_step_R = 1;
 
-        double R_temp = (double) (R_BUBBLE_MAX);
+        double R_temp = (double) (astro_params->R_BUBBLE_MAX);
 
         counter = 0;
 
