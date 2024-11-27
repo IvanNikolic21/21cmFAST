@@ -135,7 +135,7 @@ LOG_SUPER_DEBUG("defined parameters");
         }
 
      if (prev_redshift < 1) //deal with first redshift
-        	       ZSTEP = (1. + redshift) * (global_params.ZPRIME_STEP_FACTOR - 1.);
+        	  ZSTEP = (1. + redshift) * (global_params.ZPRIME_STEP_FACTOR - 1.);
      else
         ZSTEP = prev_redshift - redshift;
 
@@ -272,8 +272,10 @@ LOG_SUPER_DEBUG("erfc interpolation done");
         if(user_params->USE_INTERPOLATION_TABLES) {
             log10_overdense_spline_SFR = calloc(NSFR_low,sizeof(double));
             Overdense_spline_SFR = calloc(NSFR_high,sizeof(float));
+          
             log10_Nion_spline = calloc(NSFR_low,sizeof(float));
             Nion_spline = calloc(NSFR_high,sizeof(float));
+          
             if (flag_options->USE_MINI_HALOS){
                 prev_log10_overdense_spline_SFR = calloc(NSFR_low,sizeof(double));
                 prev_Overdense_spline_SFR = calloc(NSFR_high,sizeof(float));
@@ -1374,7 +1376,6 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                 if (flag_options->INHOMO_RECO && (box->xH_box[HII_R_INDEX(x,y,z)] > FRACT_FLOAT_ERR) ){
                                     box->Gamma12_box[HII_R_INDEX(x,y,z)] = Gamma_R_prefactor * f_coll + Gamma_R_prefactor_MINI * f_coll_MINI;
                                     box->MFP_box[HII_R_INDEX(x,y,z)] = R;
-                                    box->Nion_box[HII_R_INDEX(x,y,z)] = f_coll * ION_EFF_FACTOR + f_coll_MINI * ION_EFF_FACTOR_MINI;
                                 }
 
                                 // keep track of the first time this cell is ionized (earliest time)
