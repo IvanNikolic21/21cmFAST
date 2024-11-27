@@ -135,7 +135,7 @@ LOG_SUPER_DEBUG("defined parameters");
         }
 
      if (prev_redshift < 1) //deal with first redshift
-        ZSTEP = (1. + redshift) * (global_params.ZPRIME_STEP_FACTOR - 1.);
+        	       ZSTEP = (1. + redshift) * (global_params.ZPRIME_STEP_FACTOR - 1.);
      else
         ZSTEP = prev_redshift - redshift;
 
@@ -145,7 +145,6 @@ LOG_SUPER_DEBUG("defined parameters");
             for (ct=0; ct<HII_TOT_NUM_PIXELS; ct++) {
                 box->Gamma12_box[ct] = 0.0;
                 box->MFP_box[ct] = 0.0;
-                box->Nion_box[ct] = 0.0;
             }
         }
     }
@@ -273,7 +272,8 @@ LOG_SUPER_DEBUG("erfc interpolation done");
         if(user_params->USE_INTERPOLATION_TABLES) {
             log10_overdense_spline_SFR = calloc(NSFR_low,sizeof(double));
             Overdense_spline_SFR = calloc(NSFR_high,sizeof(float));
-
+            log10_Nion_spline = calloc(NSFR_low,sizeof(float));
+            Nion_spline = calloc(NSFR_high,sizeof(float));
             if (flag_options->USE_MINI_HALOS){
                 prev_log10_overdense_spline_SFR = calloc(NSFR_low,sizeof(double));
                 prev_Overdense_spline_SFR = calloc(NSFR_high,sizeof(float));
@@ -285,10 +285,6 @@ LOG_SUPER_DEBUG("erfc interpolation done");
                 prev_Nion_spline = calloc(NSFR_high*NMTURN,sizeof(float));
                 prev_log10_Nion_spline_MINI = calloc(NSFR_low*NMTURN,sizeof(float));
                 prev_Nion_spline_MINI = calloc(NSFR_high*NMTURN,sizeof(float));
-            }
-            else{
-                log10_Nion_spline = calloc(NSFR_low,sizeof(float));
-                Nion_spline = calloc(NSFR_high,sizeof(float));
             }
         }
 
