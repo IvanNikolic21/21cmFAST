@@ -706,8 +706,6 @@ class FlagOptions(StructWithDefaults):
         "M_MIN_in_Mass": False,
         "PHOTON_CONS": False,
         "FIX_VCB_AVG": False,
-        "USE_VELS_AUX": None,
-        "EVOLVING_R_BUBBLE_MAX": False, 
     }
 
     @property
