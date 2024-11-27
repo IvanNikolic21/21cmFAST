@@ -137,7 +137,6 @@ struct IonizedBox{
     float *MFP_box;
     float *z_re_box;
     float *dNrec_box;
-    float *Nion_box;
     float *temp_kinetic_all_gas;
     float *Fcoll;
     float *Fcoll_MINI;
