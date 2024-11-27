@@ -135,7 +135,7 @@ LOG_SUPER_DEBUG("defined parameters");
         }
 
      if (prev_redshift < 1) //deal with first redshift
-        	  ZSTEP = (1. + redshift) * (global_params.ZPRIME_STEP_FACTOR - 1.);
+        	ZSTEP = (1. + redshift) * (global_params.ZPRIME_STEP_FACTOR - 1.);
      else
         ZSTEP = prev_redshift - redshift;
 
@@ -272,10 +272,10 @@ LOG_SUPER_DEBUG("erfc interpolation done");
         if(user_params->USE_INTERPOLATION_TABLES) {
             log10_overdense_spline_SFR = calloc(NSFR_low,sizeof(double));
             Overdense_spline_SFR = calloc(NSFR_high,sizeof(float));
-          
+
             log10_Nion_spline = calloc(NSFR_low,sizeof(float));
             Nion_spline = calloc(NSFR_high,sizeof(float));
-          
+
             if (flag_options->USE_MINI_HALOS){
                 prev_log10_overdense_spline_SFR = calloc(NSFR_low,sizeof(double));
                 prev_Overdense_spline_SFR = calloc(NSFR_high,sizeof(float));
