@@ -150,7 +150,7 @@ extern struct GlobalParams global_params = {
     .M_MIN_INTEGRAL = 1e5,
     .M_MAX_INTEGRAL = 1e16,
 
-    .T_RE = 2e4
+    .T_RE = 2e4,
     // .T_RE = 1e4,
 
     .VAVG=25.86,
