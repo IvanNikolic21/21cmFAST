@@ -3487,7 +3487,7 @@ def _Proj_array(
             Tcmb += Tcmb_new * np.exp(
                 -taue_arry
             )  # tcmb contribution with tau_e taken in account
-    taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2)
+    taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     mean_taue_fin = np.mean(taue_int_diff)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
