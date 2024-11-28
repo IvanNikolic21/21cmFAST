@@ -3429,7 +3429,7 @@ def _Proj_array(
 ):
     """Do the actual projection."""
     dtau_3d = (
-        kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4 - xH)
+        kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )  # this is used for tau_e contribution
     dtau_3d_diff = (
         kSZ_consts.A_diff * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
@@ -3446,7 +3446,7 @@ def _Proj_array(
         inc = 1
         inc_displacement = kSZ_consts.dR / kSZ_consts.DA_zstart
         Tcmb_3d = (
-            kSZ_consts.A * velocity * (1.08 - xH) * (1.0 + density)
+            kSZ_consts.A * velocity * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * (1.0 + density)
         )  # this is used for tcmb contribution
         taue_arry = np.full(
             (kSZ_consts.HII_DIM, kSZ_consts.HII_DIM), kSZ_consts.mean_taue_curr_z
