@@ -3456,7 +3456,7 @@ def _Proj_array(
             dtau_new = (
                 dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
             )  # tcmb and tau_e contribution with appropriate redshift dependecies
-            dtau_3d_diff[:,:,k] = dtau_3d_diff[:, :, k] / (1 + redshifts[k]) / Planck18.H(redshifts[k]).cgs.value
+            dtau_3d_diff[:,:,k] = dtau_3d_diff[:, :, k] * (1 + redshifts[k])**2 / Planck18.H(redshifts[k]).cgs.value
             
             Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
             if not PARALLEL_APPROX:
