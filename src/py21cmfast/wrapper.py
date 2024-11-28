@@ -3456,9 +3456,8 @@ def _Proj_array(
             dtau_new = (
                 dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
             )  # tcmb and tau_e contribution with appropriate redshift dependecies
-            dtau_new_diff = (
-                dtau_3d_diff[:, :, k] / (1 + redshifts[k]) / Planck18.H(redshifts[k]).cgs.value
-            )
+            dtau_3d_diff[:,:,k] = dtau_3d_diff[:, :, k] / (1 + redshifts[k]) / Planck18.H(redshifts[k]).cgs.value
+            
             Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
             if not PARALLEL_APPROX:
                 a = np.round(
@@ -3488,7 +3487,7 @@ def _Proj_array(
             Tcmb += Tcmb_new * np.exp(
                 -taue_arry
             )  # tcmb contribution with tau_e taken in account
-    taue_int_diff = trapz(y=dtau_new_diff,x=redshifts,axis=2)
+    taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2)
     mean_taue_fin = np.mean(taue_int_diff)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
