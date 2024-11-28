@@ -3432,7 +3432,7 @@ def _Proj_array(
         kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4 - xH)
     )  # this is used for tau_e contribution
     dtau_3d_diff = (
-        kSZ_consts.A_diff * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4 - xH)
+        kSZ_consts.A_diff * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )
     if not (PARALLEL_APPROX or rotation):
         # pay attention to the z order here in cumsum
