@@ -99,6 +99,7 @@ from astropy import constants
 from astropy.cosmology import Planck18, z_at_value
 from powerbox import get_power
 from scipy.interpolate import interp1d
+from scipy.integrate import trapz
 from typing import Any, Callable, Sequence
 
 from ._cfg import config
@@ -3430,6 +3431,9 @@ def _Proj_array(
     dtau_3d = (
         kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4 - xH)
     )  # this is used for tau_e contribution
+    dtau_3d_diff = (
+        kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4 - xH)
+    )
     if not (PARALLEL_APPROX or rotation):
         # pay attention to the z order here in cumsum
         taue_arry = (
@@ -3452,6 +3456,9 @@ def _Proj_array(
             dtau_new = (
                 dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
             )  # tcmb and tau_e contribution with appropriate redshift dependecies
+            dtau_new_diff = (
+                dtau_3d_diff[:, :, k] / (1 + redshifts[k]) / Planck18.H(redshifts[k]).cgs.value
+            )
             Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
             if not PARALLEL_APPROX:
                 a = np.round(
@@ -3481,7 +3488,8 @@ def _Proj_array(
             Tcmb += Tcmb_new * np.exp(
                 -taue_arry
             )  # tcmb contribution with tau_e taken in account
-    mean_taue_fin = np.mean(taue_arry)
+    taue_int_diff = trapz(y=dtau_new_diff,x=redshifts,axis=2)
+    mean_taue_fin = np.mean(taue_int_diff)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
 
@@ -3507,6 +3515,7 @@ class _KszConstants:
         self.dR = BOX_LEN / HII_DIM
         self.CMperMPC = constants.kpc.cgs.value * 1e3
         self.A = self.N_b0 * constants.sigma_T.cgs.value * self.dR * self.CMperMPC
+        self.A_diff = self.N_b0 * constants.sigma_T.cgs.value * constants.c.cgs.value
         self.HII_DIM = HII_DIM
         self.BOX_LEN = BOX_LEN
         self.red_dist = red_dist
