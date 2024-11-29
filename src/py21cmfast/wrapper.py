@@ -99,7 +99,7 @@ from astropy import constants
 from astropy.cosmology import Planck18, z_at_value
 from powerbox import get_power
 from scipy.interpolate import interp1d
-from scipy.integrate import trapz
+from scipy.integrate import trapz, cumulative_trapezoid
 from typing import Any, Callable, Sequence
 
 from ._cfg import config
@@ -3457,7 +3457,7 @@ def _Proj_array(
                 dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
             )  # tcmb and tau_e contribution with appropriate redshift dependecies
             dtau_3d_diff[:,:,k] = dtau_3d_diff[:, :, k] * (1 + redshifts[k])**2 / Planck18.H(redshifts[k]).cgs.value
-            
+            dtau_cum = trapz(y=dtau_3d_diff[:,:,:k+1],x=redshifts[:k+1],axis=2) + kSZ_consts.mean_taue_curr_z
             Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
             if not PARALLEL_APPROX:
                 a = np.round(
@@ -3485,12 +3485,11 @@ def _Proj_array(
                 Tcmb_new = np.roll(Tcmb_new, -ty, 1)
             taue_arry += dtau_new  # tau_e updating
             Tcmb += Tcmb_new * np.exp(
-                -taue_arry
+                -dtau_cum
             )  # tcmb contribution with tau_e taken in account
     taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     mean_taue_fin_2 = np.mean(taue_int_diff)
     mean_taue_fin = np.mean(taue_arry)
-    print("This is the mean from the previous method:", mean_taue_fin, "and from the other method", mean_taue_fin_2)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
 
