@@ -3432,7 +3432,7 @@ def _Proj_array(
         kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )  # this is used for tau_e contribution
     dtau_3d_diff = (
-        kSZ_consts.A_diff * (1.0 + density) * (1.0 - xH)
+        kSZ_consts.A_diff * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )
     if not (PARALLEL_APPROX or rotation):
         # pay attention to the z order here in cumsum
@@ -3487,8 +3487,9 @@ def _Proj_array(
             Tcmb += Tcmb_new * np.exp(
                 -taue_arry
             )  # tcmb contribution with tau_e taken in account
-    taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
-    mean_taue_fin = np.mean(taue_int_diff)
+    #taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
+    #mean_taue_fin = np.mean(taue_int_diff)
+    mean_taue_fin = np.mean(taue_arry)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
 
