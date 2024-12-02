@@ -3448,6 +3448,9 @@ def _Proj_array(
         Tcmb_3d = (
             kSZ_consts.A * velocity * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * (1.0 + density)
         )  # this is used for tcmb contribution
+        Tcmb_3d_diff = (
+            kSZ_consts.A_diff * velocity * kSZ_consts.CMperMPC  * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) / consts.c.cgs.value
+        )
         taue_arry = np.full(
             (kSZ_consts.HII_DIM, kSZ_consts.HII_DIM), kSZ_consts.mean_taue_curr_z
         )
@@ -3459,6 +3462,7 @@ def _Proj_array(
             dtau_3d_diff[:,:,k] = dtau_3d_diff[:, :, k] * (1 + redshifts[k])**2 / Planck18.H(redshifts[k]).cgs.value
             dtau_cum = trapz(y=dtau_3d_diff[:,:,:k+1],x=redshifts[:k+1],axis=2) + kSZ_consts.mean_taue_curr_z
             Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
+            Tcmb_3d_diff[:,:,k]*=(1+redshifts[k])
             if not PARALLEL_APPROX:
                 a = np.round(
                     np.arange(-kSZ_consts.HII_DIM / 2, kSZ_consts.HII_DIM / 2) * inc
@@ -3470,6 +3474,8 @@ def _Proj_array(
                 dtau_new = np.take(dtau_new, a, axis=0, mode="wrap")
                 dtau_new = np.take(dtau_new, a, axis=1, mode="wrap")
                 Tcmb_new = np.take(Tcmb_new, a, axis=0, mode="wrap")
+                Tcmb_3d_diff = np.take(Tcmb_3d_diff, a, axis=0, mode="wrap")
+                Tcmb_3d_diff = np.take(Tcmb_3d_diff, a, axis=0, mode="wrap")
                 Tcmb_new = np.take(Tcmb_new, a, axis=1, mode="wrap")
             if rotation:
                 if k % kSZ_consts.HII_DIM == 0:
@@ -3483,13 +3489,18 @@ def _Proj_array(
                     Tcmb_new, -tx, 0
                 )  # shifting of tcmb so there is no object repetition
                 Tcmb_new = np.roll(Tcmb_new, -ty, 1)
+                Tcmb_3d_diff = np.roll(
+                    Tcmb_3d_diff, -tx, 0
+                )  # shifting of tcmb so there is no object repetition
+                Tcmb_3d_diff = np.roll(Tcmb_3d_diff, -ty, 1)
             taue_arry += dtau_new  # tau_e updating
-            Tcmb += Tcmb_new * np.exp(
+            Tcmb_3d_diff[:,:,k] *= np.exp(
                 -dtau_cum
             )  # tcmb contribution with tau_e taken in account
     taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     mean_taue_fin_2 = np.mean(taue_int_diff)
     mean_taue_fin = np.mean(taue_arry)
+    Tcmb = trapz(y=Tcmb_3d_diff,x=redshifts,axis=2)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
 
