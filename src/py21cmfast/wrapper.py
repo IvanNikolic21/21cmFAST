@@ -3449,7 +3449,7 @@ def _Proj_array(
             kSZ_consts.A * velocity * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * (1.0 + density)
         )  # this is used for tcmb contribution
         Tcmb_3d_diff = (
-            kSZ_consts.A_diff * velocity * kSZ_consts.CMperMPC  * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) / consts.c.cgs.value
+            kSZ_consts.A_diff * velocity * kSZ_consts.CMperMPC  * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) / constants.c.cgs.value
         )
         taue_arry = np.full(
             (kSZ_consts.HII_DIM, kSZ_consts.HII_DIM), kSZ_consts.mean_taue_curr_z
