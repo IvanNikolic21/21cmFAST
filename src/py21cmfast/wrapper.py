@@ -3475,7 +3475,7 @@ def _Proj_array(
                 dtau_new = np.take(dtau_new, a, axis=1, mode="wrap")
                 Tcmb_new = np.take(Tcmb_new, a, axis=0, mode="wrap")
                 Tcmb_3d_diff = np.take(Tcmb_3d_diff, a, axis=0, mode="wrap")
-                Tcmb_3d_diff = np.take(Tcmb_3d_diff, a, axis=0, mode="wrap")
+                Tcmb_3d_diff = np.take(Tcmb_3d_diff, a, axis=1, mode="wrap")
                 Tcmb_new = np.take(Tcmb_new, a, axis=1, mode="wrap")
             if rotation:
                 if k % kSZ_consts.HII_DIM == 0:
