@@ -3396,8 +3396,6 @@ def run_kSZ(
         warnings.simplefilter("ignore")
         P_k, l_s, err = get_power(
             Tcmb
-            * kSZ_consts.CMperMPC
-            / constants.c.cgs.value
             * 1e6
             * Planck18.Tcmb0.value
             / np.sqrt(2 * np.pi),
@@ -3410,7 +3408,7 @@ def run_kSZ(
     err = np.sqrt(err) * l_s ** 2
     l_s *= (lc.lightcone_distances[0]).value
     return KSZOutput(
-        Tcmb * kSZ_consts.CMperMPC / constants.c.cgs.value * Planck18.Tcmb0.value,
+        Tcmb * Planck18.Tcmb0.value,
         mean_taue_fin,
         l_s=l_s[np.logical_not(np.isnan(l_s))],
         kSZ_power=P_k[np.logical_not(np.isnan(l_s))],
