@@ -3462,7 +3462,7 @@ def _Proj_array(
             dtau_3d_diff[:,:,k] = dtau_3d_diff[:, :, k] * (1 + redshifts[k])**2 / Planck18.H(redshifts[k]).cgs.value
             dtau_cum = trapz(y=dtau_3d_diff[:,:,:k+1],x=redshifts[:k+1],axis=2) + kSZ_consts.mean_taue_curr_z
             Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
-            Tcmb_3d_diff[:,:,k]*=(1+redshifts[k])
+            Tcmb_3d_diff[:,:,k]*=(1+redshifts[k]) / Planck18.H(redshifts[k]).cgs.value
             if not PARALLEL_APPROX:
                 a = np.round(
                     np.arange(-kSZ_consts.HII_DIM / 2, kSZ_consts.HII_DIM / 2) * inc
