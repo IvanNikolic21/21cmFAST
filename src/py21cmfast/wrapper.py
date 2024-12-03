@@ -3474,8 +3474,8 @@ def _Proj_array(
                 dtau_new = np.take(dtau_new, a, axis=0, mode="wrap")
                 dtau_new = np.take(dtau_new, a, axis=1, mode="wrap")
                 Tcmb_new = np.take(Tcmb_new, a, axis=0, mode="wrap")
-                Tcmb_3d_diff = np.take(Tcmb_3d_diff, a, axis=0, mode="wrap")
-                Tcmb_3d_diff = np.take(Tcmb_3d_diff, a, axis=1, mode="wrap")
+                Tcmb_3d_diff[:,:,k] = np.take(Tcmb_3d_diff[:,:,k], a, axis=0, mode="wrap")
+                Tcmb_3d_diff[:,:,k] = np.take(Tcmb_3d_diff[:,:,k], a, axis=1, mode="wrap")
                 Tcmb_new = np.take(Tcmb_new, a, axis=1, mode="wrap")
             if rotation:
                 if k % kSZ_consts.HII_DIM == 0:
@@ -3489,10 +3489,10 @@ def _Proj_array(
                     Tcmb_new, -tx, 0
                 )  # shifting of tcmb so there is no object repetition
                 Tcmb_new = np.roll(Tcmb_new, -ty, 1)
-                Tcmb_3d_diff = np.roll(
-                    Tcmb_3d_diff, -tx, 0
+                Tcmb_3d_diff[:,:,k] = np.roll(
+                    Tcmb_3d_diff[:,:,k], -tx, 0
                 )  # shifting of tcmb so there is no object repetition
-                Tcmb_3d_diff = np.roll(Tcmb_3d_diff, -ty, 1)
+                Tcmb_3d_diff[:,:,k] = np.roll(Tcmb_3d_diff[:,:,k], -ty, 1)
             taue_arry += dtau_new  # tau_e updating
             Tcmb_3d_diff[:,:,k] *= np.exp(
                 -dtau_cum
