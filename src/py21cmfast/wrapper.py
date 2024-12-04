@@ -3436,7 +3436,8 @@ def _Proj_array(
     Tcmb_3d_diff = (
         kSZ_consts.A_diff * velocity * kSZ_consts.CMperMPC  * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )
-    print("Tcmb_3d_diff", Tcmb_3d_diff)
+    print("Tcmb_3d_diff", Tcmb_3d_diff,"but also dtau", dtau_3d_diff)
+    print("components", kSZ_consts.A_diff, velocity*kSZ_consts.CMperMPC, (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH))
     dtau_3d_diff *= ((1+redshifts)**2/hs)[np.newaxis,np.newaxis, :]  
     Tcmb_3d_diff *= ((1+redshifts)/hs)[np.newaxis,np.newaxis, :] 
     print("Tcmb_3d_diff after multiplying by some stuff", Tcmb_3d_diff)
