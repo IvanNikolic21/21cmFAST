@@ -3439,7 +3439,7 @@ def _Proj_array(
     print("Tcmb_3d_diff", Tcmb_3d_diff,"but also dtau", dtau_3d_diff)
     print("components", kSZ_consts.A_diff, velocity*kSZ_consts.CMperMPC, (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH))
     dtau_3d_diff *= ((1+redshifts)**2/hs)[np.newaxis,np.newaxis, :]  
-    Tcmb_3d_diff *= ((1+redshifts)/hs)[np.newaxis,np.newaxis, :] 
+    Tcmb_3d_diff *= ((1+redshifts)/hs/constants.c.cgs.value)[np.newaxis,np.newaxis, :] 
     print("Tcmb_3d_diff after multiplying by some stuff", Tcmb_3d_diff)
     dtau_cum = cumulative_trapezoid(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     if not (PARALLEL_APPROX or rotation):
@@ -3547,7 +3547,7 @@ class _KszConstants:
         self.dR = BOX_LEN / HII_DIM
         self.CMperMPC = constants.kpc.cgs.value * 1e3
         self.A = self.N_b0 * constants.sigma_T.cgs.value * self.dR * self.CMperMPC
-        self.A_diff = self.N_b0 * constants.sigma_T.cgs.value
+        self.A_diff = self.N_b0 * constants.sigma_T.cgs.value * constants.c.cgs.value
         self.HII_DIM = HII_DIM
         self.BOX_LEN = BOX_LEN
         self.red_dist = red_dist
