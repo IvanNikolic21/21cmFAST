@@ -3430,17 +3430,15 @@ def _Proj_array(
     #     kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     # )  # this is used for tau_e contribution
     dtau_3d_diff = (
-        kSZ_consts.A_diff * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * constants.c.cgs.value
+        kSZ_consts.A_diff * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )
     hs =  Planck18.H(redshifts).cgs.value
     Tcmb_3d_diff = (
         kSZ_consts.A_diff * velocity * kSZ_consts.CMperMPC  * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )
-    print("Tcmb_3d_diff", Tcmb_3d_diff,"but also dtau", dtau_3d_diff)
-    print("components", kSZ_consts.A_diff, velocity*kSZ_consts.CMperMPC, (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH))
+    
     dtau_3d_diff *= ((1+redshifts)**2/hs)[np.newaxis,np.newaxis, :]  
     Tcmb_3d_diff *= ((1+redshifts)/hs/constants.c.cgs.value)[np.newaxis,np.newaxis, :] 
-    print("Tcmb_3d_diff after multiplying by some stuff", Tcmb_3d_diff)
     dtau_cum = cumulative_trapezoid(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     if not (PARALLEL_APPROX or rotation):
         # pay attention to the z order here in cumsum
@@ -3503,7 +3501,6 @@ def _Proj_array(
     taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     # mean_taue_fin_2 = np.mean(taue_int_diff)
     # mean_taue_fin = np.mean(taue_arry)
-    print(Tcmb_3d_diff, "This is kSZ differential signal")
     mean_taue_fin = np.mean(dtau_cum[:,:,-1])
     dtau_cum = np.concatenate(
       (
