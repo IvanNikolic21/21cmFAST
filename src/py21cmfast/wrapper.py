@@ -3500,6 +3500,7 @@ def _Proj_array(
     taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     # mean_taue_fin_2 = np.mean(taue_int_diff)
     # mean_taue_fin = np.mean(taue_arry)
+    print(Tcmb_3d_diff, "This is kSZ differential signal")
     mean_taue_fin = np.mean(dtau_cum[:,:,-1])
     dtau_cum = np.concatenate(
       (
@@ -3515,7 +3516,9 @@ def _Proj_array(
       ),
       axis=2
     )
+    print(dtau_cum,"is there a problem with cumulative integral?")
     Tcmb = trapz(y=Tcmb_3d_diff * np.exp(-dtau_cum),x=redshifts,axis=2)
+    print("This is Tcmb after integration", Tcmb)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
 
