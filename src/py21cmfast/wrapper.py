@@ -3436,8 +3436,8 @@ def _Proj_array(
     Tcmb_3d_diff = (
         kSZ_consts.A_diff * velocity * kSZ_consts.CMperMPC  * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )
-    dtau_3d_diff * = ((1+redshifts)**2/hs)[np.newaxis,np.newaxis, :]  
-    Tcmb_3d_diff*=((1+redshifts)/hs)[np.newaxis,np.newaxis, :]  
+    dtau_3d_diff *= ((1+redshifts)**2/hs)[np.newaxis,np.newaxis, :]  
+    Tcmb_3d_diff *= ((1+redshifts)/hs)[np.newaxis,np.newaxis, :]  
     dtau_cum = cumulative_trapezoid(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     if not (PARALLEL_APPROX or rotation):
         # pay attention to the z order here in cumsum
