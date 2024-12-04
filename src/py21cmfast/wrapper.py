@@ -3501,6 +3501,7 @@ def _Proj_array(
     # mean_taue_fin_2 = np.mean(taue_int_diff)
     # mean_taue_fin = np.mean(taue_arry)
     mean_taue_fin = np.mean(dtau_cum[:,:,-1])
+    dtau_cum = np.concatenate((np.full((HII_DIM, HII_DIM,1),kSZ_consts.mean_taue_curr_z ), dtau_cum), axis=2)
     Tcmb = trapz(y=Tcmb_3d_diff * np.exp(-dtau_cum),x=redshifts,axis=2)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
