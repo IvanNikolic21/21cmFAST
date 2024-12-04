@@ -3430,8 +3430,15 @@ def _Proj_array(
         kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
     )  # this is used for tau_e contribution
     dtau_3d_diff = (
-        kSZ_consts.A_diff * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
+        kSZ_consts.A_diff * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * constants.c.cgs.value
     )
+    hs =  Planck18.H(redshifts).cgs.value
+    Tcmb_3d_diff = (
+        kSZ_consts.A_diff * velocity * kSZ_consts.CMperMPC  * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
+    )
+    dtau_3d_diff * = ((1+redshifts)**2/hs)[np.newaxis,np.newaxis, :]  
+    Tcmb_3d_diff*=((1+redshifts)/hs)[np.newaxis,np.newaxis, :]  
+    dtau_cum = cumulative_trapezoid(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     if not (PARALLEL_APPROX or rotation):
         # pay attention to the z order here in cumsum
         taue_arry = (
@@ -3446,9 +3453,7 @@ def _Proj_array(
         Tcmb_3d = (
             kSZ_consts.A * velocity * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * (1.0 + density)
         )  # this is used for tcmb contribution
-        Tcmb_3d_diff = (
-            kSZ_consts.A_diff * velocity * kSZ_consts.CMperMPC  * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) / constants.c.cgs.value
-        )
+
         taue_arry = np.full(
             (kSZ_consts.HII_DIM, kSZ_consts.HII_DIM), kSZ_consts.mean_taue_curr_z
         )
@@ -3457,10 +3462,9 @@ def _Proj_array(
             dtau_new = (
                 dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
             )  # tcmb and tau_e contribution with appropriate redshift dependecies
-            dtau_3d_diff[:,:,k] = dtau_3d_diff[:, :, k] * (1 + redshifts[k])**2 / Planck18.H(redshifts[k]).cgs.value
-            dtau_cum = trapz(y=dtau_3d_diff[:,:,:k+1],x=redshifts[:k+1],axis=2) + kSZ_consts.mean_taue_curr_z
+            
             Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
-            Tcmb_3d_diff[:,:,k]*=(1+redshifts[k]) / Planck18.H(redshifts[k]).cgs.value
+
             if not PARALLEL_APPROX:
                 a = np.round(
                     np.arange(-kSZ_consts.HII_DIM / 2, kSZ_consts.HII_DIM / 2) * inc
@@ -3492,14 +3496,12 @@ def _Proj_array(
                 )  # shifting of tcmb so there is no object repetition
                 Tcmb_3d_diff[:,:,k] = np.roll(Tcmb_3d_diff[:,:,k], -ty, 1)
             taue_arry += dtau_new  # tau_e updating
-            Tcmb_3d_diff[:,:,k] *= np.exp(
-                -dtau_cum
-            )  # tcmb contribution with tau_e taken in account
-            print("Tcmb now", np.mean(Tcmb_3d_diff[:,:,k]), "and tau_CMB", np.mean(dtau_cum))
+
     taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     mean_taue_fin_2 = np.mean(taue_int_diff)
     mean_taue_fin = np.mean(taue_arry)
-    Tcmb = trapz(y=Tcmb_3d_diff,x=redshifts,axis=2)
+    mean_taue_fin = np.mean(dtau_cum[:,:,-1])
+    Tcmb = trapz(y=Tcmb_3d_diff * np.exp(-dtau_cum),x=redshifts,axis=2)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
 
@@ -3525,7 +3527,7 @@ class _KszConstants:
         self.dR = BOX_LEN / HII_DIM
         self.CMperMPC = constants.kpc.cgs.value * 1e3
         self.A = self.N_b0 * constants.sigma_T.cgs.value * self.dR * self.CMperMPC
-        self.A_diff = self.N_b0 * constants.sigma_T.cgs.value * constants.c.cgs.value
+        self.A_diff = self.N_b0 * constants.sigma_T.cgs.value
         self.HII_DIM = HII_DIM
         self.BOX_LEN = BOX_LEN
         self.red_dist = red_dist
