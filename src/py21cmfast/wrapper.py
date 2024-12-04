@@ -3426,9 +3426,9 @@ def _Proj_array(
     rotation=False,
 ):
     """Do the actual projection."""
-    dtau_3d = (
-        kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
-    )  # this is used for tau_e contribution
+    # dtau_3d = (
+    #     kSZ_consts.A * (1.0 + density) * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH)
+    # )  # this is used for tau_e contribution
     dtau_3d_diff = (
         kSZ_consts.A_diff * (1.0 + density)* (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * constants.c.cgs.value
     )
@@ -3450,20 +3450,20 @@ def _Proj_array(
     else:
         inc = 1
         inc_displacement = kSZ_consts.dR / kSZ_consts.DA_zstart
-        Tcmb_3d = (
-            kSZ_consts.A * velocity * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * (1.0 + density)
-        )  # this is used for tcmb contribution
+        # Tcmb_3d = (
+        #     kSZ_consts.A * velocity * (1.0 + kSZ_consts.Y_He / 4) * (1.0 - xH) * (1.0 + density)
+        # )  # this is used for tcmb contribution
 
-        taue_arry = np.full(
-            (kSZ_consts.HII_DIM, kSZ_consts.HII_DIM), kSZ_consts.mean_taue_curr_z
-        )
-        Tcmb = np.zeros((kSZ_consts.HII_DIM, kSZ_consts.HII_DIM))
+        # taue_arry = np.full(
+        #     (kSZ_consts.HII_DIM, kSZ_consts.HII_DIM), kSZ_consts.mean_taue_curr_z
+        # )
+        # Tcmb = np.zeros((kSZ_consts.HII_DIM, kSZ_consts.HII_DIM))
         for k in range(kSZ_consts.red_dist):
-            dtau_new = (
-                dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
-            )  # tcmb and tau_e contribution with appropriate redshift dependecies
+            # dtau_new = (
+            #     dtau_3d[:, :, k] * (1 + redshifts[k]) ** 2
+            # )  # tcmb and tau_e contribution with appropriate redshift dependecies
             
-            Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
+            # Tcmb_new = Tcmb_3d[:, :, k] * (1 + redshifts[k])
 
             if not PARALLEL_APPROX:
                 a = np.round(
@@ -3473,33 +3473,33 @@ def _Proj_array(
                     int
                 )  # This part assumes that the center of the field is the center of the observation
                 inc += inc_displacement.value  # increment for ray tracing
-                dtau_new = np.take(dtau_new, a, axis=0, mode="wrap")
-                dtau_new = np.take(dtau_new, a, axis=1, mode="wrap")
-                Tcmb_new = np.take(Tcmb_new, a, axis=0, mode="wrap")
+                # dtau_new = np.take(dtau_new, a, axis=0, mode="wrap")
+                # dtau_new = np.take(dtau_new, a, axis=1, mode="wrap")
+                # Tcmb_new = np.take(Tcmb_new, a, axis=0, mode="wrap")
                 Tcmb_3d_diff[:,:,k] = np.take(Tcmb_3d_diff[:,:,k], a, axis=0, mode="wrap")
                 Tcmb_3d_diff[:,:,k] = np.take(Tcmb_3d_diff[:,:,k], a, axis=1, mode="wrap")
-                Tcmb_new = np.take(Tcmb_new, a, axis=1, mode="wrap")
+                # Tcmb_new = np.take(Tcmb_new, a, axis=1, mode="wrap")
             if rotation:
                 if k % kSZ_consts.HII_DIM == 0:
                     tx = int(kSZ_consts.HII_DIM * random.random())
                     ty = int(kSZ_consts.HII_DIM * random.random())
-                dtau_new = np.roll(
-                    dtau_new, -tx, 0
-                )  # shifting of tcmb so there is no object repetition
-                dtau_new = np.roll(dtau_new, -ty, 1)
-                Tcmb_new = np.roll(
-                    Tcmb_new, -tx, 0
-                )  # shifting of tcmb so there is no object repetition
-                Tcmb_new = np.roll(Tcmb_new, -ty, 1)
+                # dtau_new = np.roll(
+                #     dtau_new, -tx, 0
+                # )  # shifting of tcmb so there is no object repetition
+                # dtau_new = np.roll(dtau_new, -ty, 1)
+                # Tcmb_new = np.roll(
+                #     Tcmb_new, -tx, 0
+                # )  # shifting of tcmb so there is no object repetition
+                # Tcmb_new = np.roll(Tcmb_new, -ty, 1)
                 Tcmb_3d_diff[:,:,k] = np.roll(
                     Tcmb_3d_diff[:,:,k], -tx, 0
                 )  # shifting of tcmb so there is no object repetition
                 Tcmb_3d_diff[:,:,k] = np.roll(Tcmb_3d_diff[:,:,k], -ty, 1)
-            taue_arry += dtau_new  # tau_e updating
+            # taue_arry += dtau_new  # tau_e updating
 
     taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
-    mean_taue_fin_2 = np.mean(taue_int_diff)
-    mean_taue_fin = np.mean(taue_arry)
+    # mean_taue_fin_2 = np.mean(taue_int_diff)
+    # mean_taue_fin = np.mean(taue_arry)
     mean_taue_fin = np.mean(dtau_cum[:,:,-1])
     Tcmb = trapz(y=Tcmb_3d_diff * np.exp(-dtau_cum),x=redshifts,axis=2)
     Tcmb = Tcmb - np.mean(Tcmb)
