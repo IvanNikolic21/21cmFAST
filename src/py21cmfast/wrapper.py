@@ -3442,6 +3442,7 @@ def _Proj_array(
     dtau_cum = cumulative_trapezoid(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
     if not (PARALLEL_APPROX or rotation):
         # pay attention to the z order here in cumsum
+        #NOT UP-TO-DATE
         taue_arry = (
             np.cumsum(dtau_3d * (1 + redshifts) ** 2, axis=2)
             + kSZ_consts.mean_taue_curr_z
@@ -3499,8 +3500,7 @@ def _Proj_array(
             # taue_arry += dtau_new  # tau_e updating
 
     taue_int_diff = trapz(y=dtau_3d_diff,x=redshifts,axis=2) + kSZ_consts.mean_taue_curr_z
-    # mean_taue_fin_2 = np.mean(taue_int_diff)
-    # mean_taue_fin = np.mean(taue_arry)
+
     mean_taue_fin = np.mean(dtau_cum[:,:,-1])
     dtau_cum = np.concatenate(
       (
@@ -3516,9 +3516,7 @@ def _Proj_array(
       ),
       axis=2
     )
-    print(dtau_cum,"is there a problem with cumulative integral?")
     Tcmb = trapz(y=Tcmb_3d_diff * np.exp(-dtau_cum),x=redshifts,axis=2)
-    print("This is Tcmb after integration", Tcmb)
     Tcmb = Tcmb - np.mean(Tcmb)
     return Tcmb, mean_taue_fin
 
