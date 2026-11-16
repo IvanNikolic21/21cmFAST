@@ -1,17 +1,17 @@
-"""Compute the patchy kinetic Sunyaev-Zel'dovich (kSZ) signal from a lightcone.
+r"""Compute the patchy kinetic Sunyaev-Zel'dovich (kSZ) signal from a lightcone.
 
 The kSZ temperature anisotropy is obtained by projecting the free-electron momentum
 field of a rectilinear lightcone along the line of sight,
 
 .. math::
 
-    \\frac{\\Delta T}{T_{\\rm CMB}}(\\hat{n}) = -\\sigma_T \\int dz \\,
-    \\frac{n_{e,0} (1+z)\\, v}{H(z)} (1+\\delta)(1-x_{\\rm HI})\\, e^{-\\tau(z)},
+    \frac{\Delta T}{T_{\rm CMB}}(\hat{n}) = -\sigma_T \int dz \,
+    \frac{n_{e,0} (1+z)\, v}{H(z)} (1+\delta)(1-x_{\rm HI})\, e^{-\tau(z)},
 
 where :math:`v` is the comoving line-of-sight velocity of the 21cmFAST lightcone
 (positive away from the observer), :math:`n_{e,0}` the comoving electron density of
 fully ionized gas (hydrogen and singly ionized helium, or doubly ionized helium below
-``z_re_HeII``, as in :func:`~py21cmfast.compute_tau`) and :math:`\\tau` the Thomson
+``z_re_HeII``, as in :func:`~py21cmfast.compute_tau`) and :math:`\tau` the Thomson
 optical depth along each line of sight.
 """
 
@@ -37,7 +37,7 @@ _C_CGS = constants.c.cgs.value
 
 @attrs.define(frozen=True, kw_only=True, eq=False)
 class KSZResult:
-    """The kSZ signal computed from a lightcone.
+    r"""The kSZ signal computed from a lightcone.
 
     Parameters
     ----------
@@ -51,11 +51,11 @@ class KSZResult:
     ell
         Multipoles of the angular power spectrum bins (mean multipole in each bin).
     power
-        Angular power spectrum :math:`D_\\ell = \\ell(\\ell+1)C_\\ell/2\\pi`, in
-        :math:`\\mu K^2`.
+        Angular power spectrum :math:`D_\ell = \ell(\ell+1)C_\ell/2\pi`, in
+        :math:`\mu K^2`.
     power_err
-        Standard error of the mean of :math:`D_\\ell` in each bin, in
-        :math:`\\mu K^2`.
+        Standard error of the mean of :math:`D_\ell` in each bin, in
+        :math:`\mu K^2`.
     """
 
     temperature: np.ndarray
@@ -148,9 +148,7 @@ def compute_ksz(
     )
     del electrons
 
-    tau = (
-        cumulative_trapezoid(dtau_dz, x=redshifts, axis=-1, initial=0.0) + tau_start
-    )
+    tau = cumulative_trapezoid(dtau_dz, x=redshifts, axis=-1, initial=0.0) + tau_start
     tau_e = float(np.mean(tau[..., -1]))
     del dtau_dz
 
@@ -244,7 +242,9 @@ def _remap_slices(
         if ray_trace:
             idx = np.round(centred * scale[k] + 3 * n / 2).astype(int)
             field[..., k] = (
-                field[..., k].take(idx, axis=0, mode="wrap").take(idx, axis=1, mode="wrap")
+                field[..., k]
+                .take(idx, axis=0, mode="wrap")
+                .take(idx, axis=1, mode="wrap")
             )
         if rotation:
             if k % n == 0:
@@ -279,7 +279,9 @@ def _angular_power_spectrum(
     kmag = np.sqrt(k1d[:, None] ** 2 + k1d[None, :] ** 2).ravel()
     power = power.ravel()
 
-    edges = np.logspace(np.log10(kmag[kmag > 0].min()), np.log10(kmag.max()), n_bins + 1)
+    edges = np.logspace(
+        np.log10(kmag[kmag > 0].min()), np.log10(kmag.max()), n_bins + 1
+    )
     idx = np.digitize(kmag, edges)
 
     def _binsum(weights=None):

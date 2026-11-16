@@ -78,9 +78,7 @@ def test_angular_power_spectrum_matches_powerbox():
 
     np.testing.assert_allclose(k, expected.bin_avg, rtol=1e-10, equal_nan=True)
     np.testing.assert_allclose(power, expected.power, rtol=1e-10, equal_nan=True)
-    np.testing.assert_allclose(
-        variance, expected.variance, rtol=1e-10, equal_nan=True
-    )
+    np.testing.assert_allclose(variance, expected.variance, rtol=1e-10, equal_nan=True)
 
 
 def test_neutral_lightcone_has_no_signal(inputs):
