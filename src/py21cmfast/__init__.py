@@ -43,6 +43,7 @@ __all__ = [
     "compute_halo_grid",
     "compute_initial_conditions",
     "compute_ionization_field",
+    "compute_ksz",
     "compute_luminosity_function",
     "compute_radiation_fields",
     "compute_rms",
@@ -100,6 +101,7 @@ from .io.h5 import (
     read_output_struct,
     write_output_to_hdf5,
 )
+from .ksz import compute_ksz
 from .lightconers import AngularLightconer, RectilinearLightconer
 from .wrapper.cfuncs import (
     compute_luminosity_function,
