@@ -106,10 +106,28 @@ def test_tau_matches_compute_tau(inputs):
     assert result.tau_e == pytest.approx(tau_full, rel=5e-3)
 
 
-def test_defaults_are_parallel_without_rotation(random_lightcone):
+def test_defaults_are_ray_traced_without_rotation(random_lightcone):
     default = compute_ksz(random_lightcone)
-    explicit = compute_ksz(random_lightcone, parallel_approx=True, rotation=False)
+    explicit = compute_ksz(random_lightcone, parallel_approx=False, rotation=False)
     np.testing.assert_array_equal(default.temperature, explicit.temperature)
+
+
+def test_ray_tracing_removes_box_repetition(inputs):
+    """Parallel rays through a repeating box add up coherently; ray tracing does not.
+
+    The velocity field repeats every HII_DIM slices (2.5 times over the lightcone).
+    If the repeats were fully independent, the map variance would be 80/208 ~ 0.38 of
+    the coherent (parallel) case.
+    """
+    n = inputs.simulation_options.HII_DIM
+    box = np.random.default_rng(7).normal(scale=1e-15, size=(n, n, n))
+    velocity = np.concatenate([box] * (N_SLICES // n + 1), axis=-1)[..., :N_SLICES]
+    lc = _make_lightcone(inputs, velocity=velocity, zmin=0.1)
+
+    parallel = compute_ksz(lc, parallel_approx=True)
+    traced = compute_ksz(lc, parallel_approx=False)
+
+    assert np.var(traced.temperature) < 0.6 * np.var(parallel.temperature)
 
 
 def test_ionized_lightcone_increases_tau(inputs):

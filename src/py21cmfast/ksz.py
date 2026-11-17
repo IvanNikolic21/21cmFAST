@@ -68,13 +68,13 @@ class KSZResult:
 def compute_ksz(
     lightcone: LightCone,
     *,
-    parallel_approx: bool = True,
+    parallel_approx: bool = False,
     rotation: bool = False,
     random_seed: int | None = None,
     n_bins: int = 30,
     z_re_HeII: float = 3.0,
 ) -> KSZResult:
-    """Compute the patchy kSZ signal of a rectilinear lightcone.
+    r"""Compute the patchy kSZ signal of a rectilinear lightcone.
 
     The universe is assumed to be fully ionized between z=0 and the lowest redshift
     of the lightcone; the optical depth from that range is computed with
@@ -86,11 +86,17 @@ def compute_ksz(
         A rectilinear lightcone containing the ``density`` and ``neutral_fraction``
         quantities, and either ``los_velocity`` or ``velocity_z``.
     parallel_approx
-        If True (default), use the parallel-ray approximation, i.e. every slice is
-        projected with the same transverse comoving size. If False, slices are
-        re-sampled so that each map pixel subtends the same angle at all distances
-        (ray tracing through the periodic box), which also reduces the repetition
-        of structures along the line of sight.
+        If False (default), slices are re-sampled so that each map pixel subtends
+        the same angle at all distances (ray tracing through the periodic box). If
+        True, use the parallel-ray approximation, i.e. every slice is projected with
+        the same transverse comoving size. Since the lightcone is built from a
+        periodic box, parallel rays pass through the same structures every
+        ``BOX_LEN`` along the line of sight, and their velocities add coherently.
+        This strongly overestimates the power when the ionized part of the
+        lightcone is longer than ``BOX_LEN`` (by a factor of ~2.6 at
+        :math:`\ell=3000` for a 500 Mpc box covering z=5-15). Ray tracing removes
+        most of this repetition. The parallel approximation is only safe when the
+        box is larger than the ionized part of the lightcone.
     rotation
         If True, randomly shift the transverse position of the box every ``HII_DIM``
         slices, to avoid repeating the same structures along the line of sight.
