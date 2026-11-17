@@ -1,21 +1,29 @@
 r"""Compute the patchy kinetic Sunyaev-Zel'dovich (kSZ) signal from a lightcone.
 
 The kSZ temperature anisotropy is obtained by projecting the free-electron momentum
-field of a rectilinear lightcone along the line of sight,
+field of a lightcone along the line of sight,
 
 .. math::
 
     \frac{\Delta T}{T_{\rm CMB}}(\hat{n}) = -\sigma_T \int dz \,
     \frac{n_{e,0} (1+z)\, v}{H(z)} (1+\delta)(1-x_{\rm HI})\, e^{-\tau(z)},
 
-where :math:`v` is the comoving line-of-sight velocity of the 21cmFAST lightcone
-(positive away from the observer), :math:`n_{e,0}` the comoving electron density of
-fully ionized gas (hydrogen and singly ionized helium, or doubly ionized helium below
-``z_re_HeII``, as in :func:`~py21cmfast.compute_tau`) and :math:`\tau` the Thomson
-optical depth along each line of sight.
+where :math:`v` is the comoving line-of-sight velocity (positive away from the
+observer), :math:`n_{e,0}` the comoving electron density of fully ionized gas
+(hydrogen and singly ionized helium, or doubly ionized helium below ``z_re_HeII``, as
+in :func:`~py21cmfast.compute_tau`) and :math:`\tau` the Thomson optical depth along
+each line of sight.
+
+Both rectilinear and angular lightcones are supported. Angular lightcones sample the
+simulation along true lines of sight, so no ray-tracing approximation is needed;
+their pixels must form a regular grid in latitude and longitude, small enough for the
+flat-sky approximation (e.g. from
+:meth:`~py21cmfast.lightconers.AngularLightconer.like_rectilinear`).
 """
 
 from __future__ import annotations
+
+import warnings
 
 import attrs
 import numpy as np
@@ -23,16 +31,28 @@ from astropy import constants, units
 from scipy.integrate import cumulative_trapezoid, trapezoid
 
 from .drivers.lightcone import AngularLightcone, LightCone
+from .lightconers import AngularLightconer
 from .wrapper.cfuncs import compute_tau
 from .wrapper.inputs import CosmoParams
 
-# Lightcone quantities that can be used as the line-of-sight velocity, in order
-# of preference.
+# Lightcone quantities that can be used as the line-of-sight velocity of a
+# rectilinear lightcone, in order of preference.
 _VELOCITY_QUANTITIES = ("los_velocity", "velocity_z")
 
 _CM_PER_MPC = units.Mpc.to(units.cm)
 _SIGMA_T = constants.sigma_T.cgs.value
 _C_CGS = constants.c.cgs.value
+
+# Slices whose mean ionized fraction is below this do not count as "ionized" when
+# checking whether parallel rays see the same structures more than once.
+_IONIZED_SLICE_THRESHOLD = 0.01
+
+# Relative tolerance on the spacing of an angular pixel grid to count as regular.
+_GRID_RTOL = 1e-6
+# Largest allowed relative difference between the width (dlon * cos(lat)) and height
+# (dlat) of the angular pixels anywhere in the map, for the flat-sky approximation.
+# A map starting at the equator can be up to ~18 degrees across.
+_FLAT_SKY_DISTORTION = 0.05
 
 
 @attrs.define(frozen=True, kw_only=True, eq=False)
@@ -42,9 +62,13 @@ class KSZResult:
     Parameters
     ----------
     temperature
-        2D map of the kSZ temperature anisotropy (mean subtracted), in Kelvin. The
-        map covers the angular extent of the near face of the lightcone, i.e. each
-        pixel subtends ``cell_size / lightcone_distances[0]`` radians.
+        2D map of the kSZ temperature anisotropy (mean subtracted), in Kelvin. For a
+        rectilinear lightcone the axes are the two transverse axes of the box. For an
+        angular lightcone, rows are ordered by increasing latitude and columns by
+        increasing longitude.
+    pixel_size
+        Angular size of a map pixel, in radians. For a rectilinear lightcone, this
+        is ``cell_size / lightcone_distances[0]``.
     tau_e
         Mean Thomson optical depth integrated from z=0 to the far end of the
         lightcone.
@@ -59,6 +83,7 @@ class KSZResult:
     """
 
     temperature: np.ndarray
+    pixel_size: float
     tau_e: float
     ell: np.ndarray
     power: np.ndarray
@@ -68,13 +93,14 @@ class KSZResult:
 def compute_ksz(
     lightcone: LightCone,
     *,
+    lightconer: AngularLightconer | None = None,
     parallel_approx: bool = False,
     rotation: bool = False,
     random_seed: int | None = None,
     n_bins: int = 30,
     z_re_HeII: float = 3.0,
 ) -> KSZResult:
-    r"""Compute the patchy kSZ signal of a rectilinear lightcone.
+    r"""Compute the patchy kSZ signal of a lightcone.
 
     The universe is assumed to be fully ionized between z=0 and the lowest redshift
     of the lightcone; the optical depth from that range is computed with
@@ -83,24 +109,32 @@ def compute_ksz(
     Parameters
     ----------
     lightcone
-        A rectilinear lightcone containing the ``density`` and ``neutral_fraction``
-        quantities, and either ``los_velocity`` or ``velocity_z``.
+        A lightcone containing the ``density``, ``neutral_fraction`` and
+        ``los_velocity`` quantities. A rectilinear lightcone may provide
+        ``velocity_z`` instead of ``los_velocity``. An angular lightcone needs
+        ``los_velocity``, which requires ``KEEP_3D_VELOCITIES=True`` in the matter
+        options.
+    lightconer
+        The :class:`~py21cmfast.lightconers.AngularLightconer` used to create an
+        angular lightcone, which provides the angular coordinates of its pixels.
+        Required for angular lightcones and ignored for rectilinear ones.
     parallel_approx
-        If False (default), slices are re-sampled so that each map pixel subtends
-        the same angle at all distances (ray tracing through the periodic box). If
-        True, use the parallel-ray approximation, i.e. every slice is projected with
-        the same transverse comoving size. Since the lightcone is built from a
-        periodic box, parallel rays pass through the same structures every
-        ``BOX_LEN`` along the line of sight, and their velocities add coherently.
-        This strongly overestimates the power when the ionized part of the
-        lightcone is longer than ``BOX_LEN`` (by a factor of ~2.6 at
-        :math:`\ell=3000` for a 500 Mpc box covering z=5-15). Ray tracing removes
-        most of this repetition. The parallel approximation is only safe when the
-        box is larger than the ionized part of the lightcone.
+        Only used for rectilinear lightcones. If False (default), slices are
+        re-sampled so that each map pixel subtends the same angle at all distances
+        (ray tracing through the periodic box). If True, use the parallel-ray
+        approximation, i.e. every slice is projected with the same transverse
+        comoving size. Since the lightcone is built from a periodic box, parallel
+        rays pass through the same structures every ``BOX_LEN`` along the line of
+        sight, and their velocities add coherently. This strongly overestimates the
+        power when the ionized part of the lightcone is longer than ``BOX_LEN`` (by
+        a factor of ~2.6 at :math:`\ell=3000` for a 500 Mpc box covering z=5-15),
+        and a warning is emitted in that case. Ray tracing removes most of this
+        repetition.
     rotation
-        If True, randomly shift the transverse position of the box every ``HII_DIM``
-        slices, to avoid repeating the same structures along the line of sight.
-        This introduces discontinuities in the lightcone and is not recommended.
+        Only used for rectilinear lightcones. If True, randomly shift the transverse
+        position of the box every ``HII_DIM`` slices, to avoid repeating the same
+        structures along the line of sight. This introduces discontinuities in the
+        lightcone and is not recommended.
     random_seed
         Seed for the random shifts used when ``rotation`` is True. Defaults to the
         random seed of the lightcone.
@@ -117,21 +151,35 @@ def compute_ksz(
 
     Raises
     ------
-    NotImplementedError
-        If ``lightcone`` is an angular lightcone.
     ValueError
-        If a required quantity is missing from the lightcone.
+        If a required quantity is missing from the lightcone; or, for an angular
+        lightcone, if ``lightconer`` is not given or does not match the lightcone,
+        if its pixels do not form a regular flat-sky grid, or if ``parallel_approx``
+        or ``rotation`` is set.
     """
-    if isinstance(lightcone, AngularLightcone):
-        raise NotImplementedError("compute_ksz only supports rectilinear lightcones.")
-
-    density, neutral_fraction, velocity = _get_lightcone_fields(lightcone)
+    angular = isinstance(lightcone, AngularLightcone)
+    density, neutral_fraction, velocity = _get_lightcone_fields(
+        lightcone, angular=angular
+    )
 
     redshifts = np.asarray(lightcone.lightcone_redshifts, dtype=float)
     distances = lightcone.lightcone_distances.to_value(units.Mpc)
     cosmo_params = lightcone.cosmo_params
-    if random_seed is None:
-        random_seed = lightcone.random_seed
+
+    if angular:
+        if parallel_approx or rotation:
+            raise ValueError(
+                "parallel_approx and rotation only apply to rectilinear lightcones: "
+                "angular lightcones already follow the true lines of sight."
+            )
+        pixel_order, n_side, pixel_size = _angular_grid(lightconer, density.shape[0])
+    else:
+        cell_size = lightcone.simulation_options.cell_size.to_value(units.Mpc)
+        pixel_size = cell_size / distances[0]
+        if parallel_approx and not rotation:
+            _warn_if_box_repeats(
+                neutral_fraction, distances, lightcone.simulation_options.BOX_LEN
+            )
 
     tau_start = compute_tau(
         redshifts=[redshifts[0]],
@@ -158,7 +206,9 @@ def compute_ksz(
     tau_e = float(np.mean(tau[..., -1]))
     del dtau_dz
 
-    if rotation or not parallel_approx:
+    if not angular and (rotation or not parallel_approx):
+        if random_seed is None:
+            random_seed = lightcone.random_seed
         _remap_slices(
             dtemp_dz,
             scale=distances / distances[0],
@@ -168,40 +218,140 @@ def compute_ksz(
         )
 
     delta_t = trapezoid(dtemp_dz * np.exp(-tau), x=redshifts, axis=-1)
+    if angular:
+        delta_t = delta_t[pixel_order].reshape(n_side, n_side)
     delta_t -= delta_t.mean()
     temperature = delta_t * cosmo_params.cosmo.Tcmb0.to_value(units.K)
 
+    # Work in pixel units, so that the binning depends only on the map size. In the
+    # flat-sky approximation ell = k / pixel_size, and D_ell = ell^2 C_ell / 2pi =
+    # k^2 P(k) in pixel units (the 1/2pi is applied to the map), independent of the
+    # pixel size.
     k, power, variance = _angular_power_spectrum(
         temperature * 1e6 / np.sqrt(2 * np.pi),
-        box_len=lightcone.simulation_options.BOX_LEN,
+        box_len=temperature.shape[0],
         n_bins=n_bins,
     )
     keep = ~np.isnan(k)
     k = k[keep]
     return KSZResult(
         temperature=temperature,
+        pixel_size=float(pixel_size),
         tau_e=tau_e,
-        ell=k * distances[0],
+        ell=k / pixel_size,
         power=power[keep] * k**2,
         power_err=np.sqrt(variance[keep]) * k**2,
     )
 
 
 def _get_lightcone_fields(
-    lightcone: LightCone,
+    lightcone: LightCone, *, angular: bool
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Get the density, neutral fraction and line-of-sight velocity lightcones."""
+    """Get the density, neutral fraction and outward line-of-sight velocity."""
     lcs = lightcone.lightcones
     missing = [q for q in ("density", "neutral_fraction") if q not in lcs]
-    velocity_key = next((q for q in _VELOCITY_QUANTITIES if q in lcs), None)
+    # The z-velocity is only the line-of-sight velocity for rectilinear lightcones.
+    candidates = ("los_velocity",) if angular else _VELOCITY_QUANTITIES
+    velocity_key = next((q for q in candidates if q in lcs), None)
     if velocity_key is None:
-        missing.append(" or ".join(_VELOCITY_QUANTITIES))
+        missing.append(" or ".join(candidates))
     if missing:
         raise ValueError(
             f"The lightcone is missing quantities required for kSZ: {missing}. "
             "Add them to the quantities of the lightconer."
         )
-    return lcs["density"], lcs["neutral_fraction"], lcs[velocity_key]
+    velocity = lcs[velocity_key]
+    if angular:
+        # The los_velocity of angular lightcones is positive towards the observer.
+        velocity = -velocity
+    return lcs["density"], lcs["neutral_fraction"], velocity
+
+
+def _angular_grid(
+    lightconer: AngularLightconer | None, n_pixels: int
+) -> tuple[np.ndarray, int, float]:
+    """Find how to arrange the pixels of an angular lightcone on a square 2D grid.
+
+    Returns
+    -------
+    order
+        Indices that sort the pixels by latitude, then longitude, so that
+        ``values[order].reshape(n_side, n_side)`` is the map.
+    n_side
+        Number of pixels along each side of the map.
+    pixel_size
+        Angular size of the pixels, in radians.
+    """
+    if not isinstance(lightconer, AngularLightconer):
+        raise ValueError(
+            "compute_ksz needs the AngularLightconer used to create an angular "
+            "lightcone, passed as `lightconer`, to know where its pixels are."
+        )
+    latitude = np.asarray(lightconer.latitude, dtype=float)
+    longitude = np.asarray(lightconer.longitude, dtype=float)
+    if latitude.size != n_pixels:
+        raise ValueError(
+            f"The lightconer has {latitude.size} pixels, but the lightcone has "
+            f"{n_pixels}."
+        )
+
+    not_a_grid = ValueError(
+        "compute_ksz needs the pixels of an angular lightcone to form a square, "
+        "regularly spaced grid in latitude and longitude, small enough for the "
+        "flat-sky approximation (see AngularLightconer.like_rectilinear)."
+    )
+    lat_values = np.unique(latitude)
+    lon_values = np.unique(longitude)
+    n_side = lat_values.size
+    if n_side < 2 or lon_values.size != n_side or n_side**2 != n_pixels:
+        raise not_a_grid
+
+    order = np.lexsort((longitude, latitude))
+    lat_on_grid = np.array_equal(latitude[order], np.repeat(lat_values, n_side))
+    lon_on_grid = np.array_equal(longitude[order], np.tile(lon_values, n_side))
+    if not (lat_on_grid and lon_on_grid):
+        raise not_a_grid
+
+    dlat = np.diff(lat_values)
+    dlon = np.diff(lon_values)
+    pixel_size = dlat.mean()
+    if not (
+        np.allclose(dlat, pixel_size, rtol=_GRID_RTOL, atol=0)
+        and np.allclose(dlon, dlon.mean(), rtol=_GRID_RTOL, atol=0)
+    ):
+        raise not_a_grid
+
+    # On the sphere, a longitude step dlon spans dlon * cos(latitude).
+    aspect = dlon.mean() * np.cos(lat_values) / pixel_size
+    distortion = np.abs(aspect - 1).max()
+    if distortion > _FLAT_SKY_DISTORTION:
+        raise ValueError(
+            "The angular pixels of the lightcone are too far from square for the "
+            f"flat-sky approximation: their width (dlon * cos(lat)) differs from "
+            f"their height by up to {distortion:.1%} (at most "
+            f"{_FLAT_SKY_DISTORTION:.0%} allowed). Use a smaller field, or one "
+            "closer to the equator."
+        )
+    return order, n_side, float(pixel_size)
+
+
+def _warn_if_box_repeats(
+    neutral_fraction: np.ndarray, distances: np.ndarray, box_len: float
+) -> None:
+    """Warn if parallel rays cross the periodic box more than once while ionized."""
+    ionized_fraction = 1.0 - neutral_fraction.mean(axis=(0, 1))
+    ionized = np.nonzero(ionized_fraction > _IONIZED_SLICE_THRESHOLD)[0]
+    if ionized.size == 0:
+        return
+    length = distances[ionized[-1]] - distances[ionized[0]]
+    if length > box_len:
+        warnings.warn(
+            f"With parallel_approx=True, the {length:.0f} Mpc ionized part of the "
+            f"lightcone passes through the same structures of the {box_len:.0f} Mpc "
+            "box more than once, which overestimates the kSZ power. Use "
+            "parallel_approx=False (ray tracing) instead.",
+            stacklevel=3,
+        )
 
 
 def _electron_density_today(

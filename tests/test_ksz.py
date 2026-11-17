@@ -1,5 +1,7 @@
 """Tests of the kSZ module."""
 
+import warnings
+
 import numpy as np
 import pytest
 from astropy import units
@@ -7,9 +9,17 @@ from astropy import units
 from py21cmfast import InputParameters, compute_ksz, compute_tau
 from py21cmfast.drivers.lightcone import AngularLightcone, LightCone
 from py21cmfast.ksz import _angular_power_spectrum
+from py21cmfast.lightconers import AngularLightconer
 
 N_SLICES = 80
 RANDOM_ZMIN = 0.5
+
+# Parallel rays through the 80-slice test lightcones cross the 32-cell box more than
+# once, which compute_ksz warns about; tests that use them on purpose ignore it.
+IGNORE_PARALLEL_WARNING = pytest.mark.filterwarnings(
+    "ignore:With parallel_approx=True"
+)
+PARALLEL_WARNING = "more than once"
 
 
 @pytest.fixture(scope="module")
@@ -112,6 +122,7 @@ def test_defaults_are_ray_traced_without_rotation(random_lightcone):
     np.testing.assert_array_equal(default.temperature, explicit.temperature)
 
 
+@IGNORE_PARALLEL_WARNING
 def test_ray_tracing_removes_box_repetition(inputs):
     """Parallel rays through a repeating box add up coherently; ray tracing does not.
 
@@ -136,6 +147,7 @@ def test_ionized_lightcone_increases_tau(inputs):
     assert ionized.tau_e > neutral.tau_e
 
 
+@IGNORE_PARALLEL_WARNING
 def test_parallel_map_traces_transverse_velocity(inputs):
     """With uniform gas and a LoS-constant velocity, the map follows the velocity."""
     n = inputs.simulation_options.HII_DIM
@@ -176,6 +188,7 @@ def test_signal_is_linear_in_velocity(inputs, random_lightcone):
     assert double.tau_e == pytest.approx(base.tau_e, rel=1e-10)
 
 
+@IGNORE_PARALLEL_WARNING
 @pytest.mark.parametrize(
     ("parallel_approx", "rotation"),
     [(False, True), (False, False), (True, True), (True, False)],
@@ -192,8 +205,12 @@ def test_output_shapes(random_lightcone, parallel_approx, rotation):
     assert np.all(np.diff(result.ell) > 0)
     assert result.ell.shape == result.power.shape == result.power_err.shape
     assert np.all(result.power >= 0)
+    cell = random_lightcone.simulation_options.cell_size.to_value(units.Mpc)
+    d0 = random_lightcone.lightcone_distances[0].to_value(units.Mpc)
+    assert result.pixel_size == pytest.approx(cell / d0, rel=1e-12)
 
 
+@IGNORE_PARALLEL_WARNING
 def test_ray_tracing_and_rotation_change_the_map(random_lightcone):
     plain = compute_ksz(random_lightcone, parallel_approx=True, rotation=False)
     traced = compute_ksz(random_lightcone, parallel_approx=False, rotation=False)
@@ -235,7 +252,161 @@ def test_missing_quantity_raises(inputs):
         compute_ksz(lc)
 
 
-def test_angular_lightcone_not_supported(inputs):
-    lc = _make_lightcone(inputs, cls=AngularLightcone)
-    with pytest.raises(NotImplementedError, match="rectilinear"):
-        compute_ksz(lc)
+def test_parallel_rays_warn_when_box_repeats(random_lightcone):
+    with pytest.warns(UserWarning, match=PARALLEL_WARNING):
+        compute_ksz(random_lightcone, parallel_approx=True)
+
+
+def test_no_parallel_warning_when_box_does_not_repeat(inputs, random_lightcone):
+    n = inputs.simulation_options.HII_DIM
+    # Ionized only over the first n // 2 slices, i.e. less than one box length.
+    partly_ionized = np.where(np.arange(N_SLICES) < n // 2, 0.0, 1.0)
+    calls = [
+        (random_lightcone, {}),
+        (random_lightcone, {"parallel_approx": True, "rotation": True}),
+        (_make_lightcone(inputs, neutral_fraction=1.0), {"parallel_approx": True}),
+        (
+            _make_lightcone(inputs, neutral_fraction=partly_ionized),
+            {"parallel_approx": True},
+        ),
+    ]
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        for lc, kwargs in calls:
+            compute_ksz(lc, **kwargs)
+
+    assert not [w for w in record if PARALLEL_WARNING in str(w.message)]
+
+
+def _to_angular(
+    lc: LightCone, *, permutation: np.ndarray | None = None
+) -> tuple[AngularLightcone, AngularLightconer]:
+    """Turn a rectilinear lightcone into an angular one with the same pixels.
+
+    Pixel ``(i, j)`` of the box gets latitude ``i`` and longitude ``j`` on a grid
+    with the angular pixel size of the near face of ``lc``. The pixels are stored in
+    the order given by ``permutation`` (default: shuffled), and ``los_velocity`` is
+    flipped to the angular convention (positive towards the observer).
+    """
+    n = lc.simulation_options.HII_DIM
+    cell = lc.simulation_options.cell_size.to_value(units.Mpc)
+    pixel = cell / lc.lightcone_distances[0].to_value(units.Mpc)
+    if permutation is None:
+        permutation = np.random.default_rng(0).permutation(n * n)
+
+    lat, lon = np.meshgrid(
+        (np.arange(n) - n / 2) * pixel, (np.arange(n) + 1) * pixel, indexing="ij"
+    )
+    lightconer = AngularLightconer(
+        lc_distances=lc.lightcone_distances,
+        cosmo=lc.cosmo_params.cosmo,
+        latitude=lat.ravel()[permutation],
+        longitude=lon.ravel()[permutation],
+        quantities=tuple(lc.lightcones),
+    )
+    sign = {"los_velocity": -1.0}
+    angular = AngularLightcone(
+        lightcone_distances=lc.lightcone_distances,
+        inputs=lc.inputs,
+        lightcones={
+            q: sign.get(q, 1.0) * v.reshape(n * n, -1)[permutation]
+            for q, v in lc.lightcones.items()
+        },
+    )
+    return angular, lightconer
+
+
+@IGNORE_PARALLEL_WARNING
+def test_angular_matches_parallel_rectilinear(random_lightcone):
+    """On the same pixels, an angular lightcone is a parallel-ray projection."""
+    angular, lightconer = _to_angular(random_lightcone)
+
+    expected = compute_ksz(random_lightcone, parallel_approx=True)
+    result = compute_ksz(angular, lightconer=lightconer)
+
+    np.testing.assert_allclose(
+        result.temperature,
+        expected.temperature,
+        rtol=1e-10,
+        atol=1e-12 * np.abs(expected.temperature).max(),
+    )
+    assert result.pixel_size == pytest.approx(expected.pixel_size, rel=1e-10)
+    assert result.tau_e == pytest.approx(expected.tau_e, rel=1e-10)
+    np.testing.assert_allclose(result.ell, expected.ell, rtol=1e-8)
+    np.testing.assert_allclose(result.power, expected.power, rtol=1e-8)
+    np.testing.assert_allclose(result.power_err, expected.power_err, rtol=1e-8)
+
+
+def test_angular_gas_moving_towards_observer_gives_increment(inputs):
+    n = inputs.simulation_options.HII_DIM
+    v_towards = np.random.default_rng(4).normal(scale=1e-15, size=(n, n, 1))
+    lc = _make_lightcone(inputs)
+    angular, lightconer = _to_angular(lc, permutation=np.arange(n * n))
+    angular.lightcones["los_velocity"] = np.broadcast_to(
+        v_towards.reshape(n * n, 1), (n * n, N_SLICES)
+    ).astype(np.float32)
+
+    result = compute_ksz(angular, lightconer=lightconer)
+
+    expected = v_towards[..., 0] - v_towards.mean()
+    assert np.corrcoef(result.temperature.ravel(), expected.ravel())[0, 1] > 0.999
+
+
+def test_angular_requires_lightconer(random_lightcone):
+    angular, _ = _to_angular(random_lightcone)
+    with pytest.raises(ValueError, match="AngularLightconer"):
+        compute_ksz(angular)
+
+
+@pytest.mark.parametrize(
+    "kwargs", [{"parallel_approx": True}, {"rotation": True}], ids=["parallel", "rot"]
+)
+def test_angular_rejects_rectilinear_options(random_lightcone, kwargs):
+    angular, lightconer = _to_angular(random_lightcone)
+    with pytest.raises(ValueError, match="only apply to rectilinear"):
+        compute_ksz(angular, lightconer=lightconer, **kwargs)
+
+
+def test_angular_requires_los_velocity(random_lightcone):
+    angular, lightconer = _to_angular(random_lightcone)
+    angular.lightcones["velocity_z"] = angular.lightcones.pop("los_velocity")
+    with pytest.raises(ValueError, match="'los_velocity'"):
+        compute_ksz(angular, lightconer=lightconer)
+
+
+def test_angular_pixels_must_form_a_grid(random_lightcone):
+    angular, lightconer = _to_angular(random_lightcone)
+    rng = np.random.default_rng(2)
+    scattered = AngularLightconer(
+        lc_distances=lightconer.lc_distances,
+        cosmo=lightconer.cosmo,
+        latitude=rng.uniform(-0.01, 0.01, size=lightconer.latitude.size),
+        longitude=rng.uniform(0.01, 0.02, size=lightconer.longitude.size),
+    )
+    with pytest.raises(ValueError, match="regularly spaced grid"):
+        compute_ksz(angular, lightconer=scattered)
+
+
+def test_angular_pixel_count_must_match(random_lightcone):
+    angular, lightconer = _to_angular(random_lightcone)
+    smaller = AngularLightconer(
+        lc_distances=lightconer.lc_distances,
+        cosmo=lightconer.cosmo,
+        latitude=lightconer.latitude[:-1],
+        longitude=lightconer.longitude[:-1],
+    )
+    with pytest.raises(ValueError, match="pixels"):
+        compute_ksz(angular, lightconer=smaller)
+
+
+def test_angular_pixels_must_be_flat_sky(random_lightcone):
+    """A regular latitude-longitude grid far from the equator has distorted pixels."""
+    angular, lightconer = _to_angular(random_lightcone)
+    near_pole = AngularLightconer(
+        lc_distances=lightconer.lc_distances,
+        cosmo=lightconer.cosmo,
+        latitude=lightconer.latitude + 1.0,
+        longitude=lightconer.longitude,
+    )
+    with pytest.raises(ValueError, match="too far from square"):
+        compute_ksz(angular, lightconer=near_pole)
